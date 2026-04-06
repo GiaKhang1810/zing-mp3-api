@@ -296,7 +296,6 @@ const clientOptions: ClientOptions = {
     ]
 }
 const client = new ZingClient(clientOptions);
-client.videoSyncLike('Z6F7W660').pipe(require('fs').createWriteStream('test.mp3'));
 
 export {
     client as default,

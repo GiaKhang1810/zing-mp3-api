@@ -39,16 +39,6 @@ Package này chạy cho **Node.js**, không dành cho browser vì dùng:
 - `axios` với Node adapter
 - `m3u8stream`
 
-## Export
-
-Package hiện export:
-
-- `default` → client mặc định
-- `client` → client mặc định
-- `Client` → class để tự khởi tạo
-- `ClientOptions` → type options
-- `SearchCategory` → exported type
-
 ## Dùng nhanh
 
 ### ESM
@@ -113,7 +103,7 @@ interface ClientOptions {
 }
 ```
 
-Ý nghĩa hiện tại theo code:
+Ý nghĩa:
 
 - `download`: giới hạn tốc độ download cho request stream
 - `highWaterMark`: buffer size cho `PassThrough` của các hàm `SyncLike`
@@ -204,6 +194,7 @@ Các mã lỗi đang xuất hiện trong source:
 
 - `ERROR_INVALID_ID`
 - `ERROR_MUSIC_NOT_FOUND`
+- `ERROR_MUSIC_VIP_ONLY`
 - `ERROR_VIDEO_NOT_FOUND`
 - `ERROR_STREAM_URL_NOT_FOUND`
 - `ERROR_STREAM_DOWNLOAD`
@@ -304,11 +295,11 @@ dist/
 
 ## Ghi chú triển khai hiện tại
 
-README này bám theo đúng code hiện có, nên có vài điểm cần lưu ý:
+Có vài điểm cần lưu ý:
 
 - Chưa có API search public trong `Client` dù đang export type `SearchCategory`
 - Video hiện mới lấy nhánh `360p`
-- Music hiện mới lấy nhánh `128`
+- Music hiện mới lấy nhánh `128kps`
 - Package phụ thuộc vào cấu trúc API/cookie/signature hiện tại của Zing MP3, nên nếu upstream đổi thì cần cập nhật source
 
 ## Ghi chú về file test trong repo
@@ -329,4 +320,4 @@ const { client } = require("@khang07/zing-mp3-api");
 
 ## License
 
-MIT
+Xem tại [LICENSE](https://github.com/GiaKhang1810/zing-mp3-api#license)
