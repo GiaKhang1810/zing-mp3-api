@@ -1,0 +1,49 @@
+{
+	"name": "zing-mp3-api",
+	"version": "1.0.0",
+	"author": "Khang <ngkhang9a5lqc11@gmail.com>",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/GiaKhang1810/zing-mp3-api.git"
+	},
+	"type": "module",
+	"main": "./dist/cjs/index.cjs",
+	"module": "./dist/esm/index.js",
+	"types": "./dist/types/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/types/index.d.ts",
+			"import": "./dist/esm/index.js",
+			"require": "./dist/cjs/index.cjs"
+		}
+	},
+	"bugs": {
+		"url": "https://github.com/GiaKhang1810/zing-mp3-api/issues"
+	},
+	"description": "The basic APIs provide the features of ZingMp3.",
+	"homepage": "https://github.com/GiaKhang1810/zing-mp3-api#readme",
+	"keywords": [
+		"zingmp3",
+		"zing",
+		"mp3",
+		"zing-api",
+		"zing-mp3-api"
+	],
+	"license": "MIT",
+	"scripts": {
+		"build:esm": "tsc -p tsconfig.json",
+		"build:cjs": "rollup -c",
+		"build:types": "api-extractor run --local",
+		"build": "rm -rf dist && bun run build:esm && bun run build:cjs && bun run build:types && rm -fr dist/esm/types dist/cjs/types"
+	},
+	"devDependencies": {
+		"@microsoft/api-extractor": "^7.58.1",
+		"@types/node": "^25.5.2",
+		"rollup": "^4.60.1",
+		"typescript": "^6.0.2"
+	},
+	"dependencies": {
+		"axios": "^1.14.0",
+		"m3u8stream": "^0.8.6"
+	}
+}

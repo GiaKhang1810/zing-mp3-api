@@ -1,0 +1,26 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ES2022",
+        "moduleResolution": "Bundler",
+        "sourceMap": true,
+        "sourceRoot": "source",
+        "outDir": "dist/esm",
+        "rootDir": "source",
+        "declaration": true,
+        "declarationDir": "dist/.types",
+        "emitDeclarationOnly": false,
+        "verbatimModuleSyntax": true,
+        "strict": true,
+        "skipLibCheck": true,
+        "types": [
+            "node"
+        ],
+        "lib": [
+            "ES2022"
+        ]
+    },
+    "include": [
+        "source/**/*.ts"
+    ]
+}
