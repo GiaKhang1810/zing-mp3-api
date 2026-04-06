@@ -1,7 +1,7 @@
 {
-	"name": "zing-mp3-api",
-	"version": "1.0.0",
-	"author": "Khang <ngkhang9a5lqc11@gmail.com>",
+	"name": "@khang07/zing-mp3-api",
+	"version": "1.0.1",
+	"author": "GiaKhang <ngkhang9a5lqc11@gmail.com>",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/GiaKhang1810/zing-mp3-api.git"
@@ -45,5 +45,10 @@
 	"dependencies": {
 		"axios": "^1.14.0",
 		"m3u8stream": "^0.8.6"
-	}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	]
 }

@@ -1,7 +1,14 @@
 interface UriStreaming {
     err: number;
     msg: string;
-    data: Partial<Record<128, string>>;
+    data: {
+        128?: string;
+        streaming?: {
+            default?: {
+                128?: string;
+            }
+        }
+    }
 }
 
 interface UriVideo {
