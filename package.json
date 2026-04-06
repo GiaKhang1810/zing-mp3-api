@@ -1,6 +1,6 @@
 {
 	"name": "@khang07/zing-mp3-api",
-	"version": "1.0.1",
+	"version": "1.1.0",
 	"author": "GiaKhang <ngkhang9a5lqc11@gmail.com>",
 	"repository": {
 		"type": "git",
@@ -15,6 +15,21 @@
 			"types": "./dist/types/index.d.ts",
 			"import": "./dist/esm/index.js",
 			"require": "./dist/cjs/index.cjs"
+		},
+		"./utils/cookies": {
+			"types": "./dist/types/utils/cookies.d.ts",
+			"import": "./dist/esm/utils/cookies.js",
+			"require": "./dist/cjs/utils/cookies.cjs"
+		},
+		"./utils/encrypt": {
+			"types": "./dist/types/utils/encrypt.d.ts",
+			"import": "./dist/esm/utils/encrypt.js",
+			"require": "./dist/cjs/utils/encrypt.cjs"
+		},
+		"./utils/lapse": {
+			"types": "./dist/types/utils/lapse.d.ts",
+			"import": "./dist/esm/utils/lapse.js",
+			"require": "./dist/cjs/utils/lapse.cjs"
 		}
 	},
 	"bugs": {
@@ -33,12 +48,12 @@
 	"scripts": {
 		"build:esm": "tsc -p tsconfig.json",
 		"build:cjs": "rollup -c",
-		"build:types": "api-extractor run --local",
-		"build": "rm -rf dist && bun run build:esm && bun run build:cjs && bun run build:types && rm -fr dist/esm/types dist/cjs/types"
+		"build": "rm -rf dist && bun run build:esm && bun run build:cjs && rm -fr dist/esm/types dist/cjs/types",
+		"test": "mocha"
 	},
 	"devDependencies": {
-		"@microsoft/api-extractor": "^7.58.1",
 		"@types/node": "^25.5.2",
+		"mocha": "^11.7.5",
 		"rollup": "^4.60.1",
 		"typescript": "^6.0.2"
 	},

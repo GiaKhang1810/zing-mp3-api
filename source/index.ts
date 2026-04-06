@@ -9,12 +9,14 @@ import { Lapse } from './utils/lapse.js';
 
 import type { AxiosInstance, AxiosResponse, CreateAxiosDefaults } from 'axios';
 
-import type { UriStreaming, UriVideo } from './types/fetch.js';
-import type { ClientOptions, RequiredClientOptions, SearchCategory } from './types/index.js';
+import type { ResponseSearch } from './types/fetch/response.js';
+import type { Uri } from './types/fetch/uri.js';
+import type { ClientOptions, RequiredClientOptions } from './types/index.js';
 
 export type {
-    ClientOptions,
-    SearchCategory
+    ResponseSearch,
+
+    ClientOptions
 }
 
 class ZingClient {
@@ -29,12 +31,11 @@ class ZingClient {
     public static readonly API_KEY_V1: string = '88265e23d4284f25963e6eedac8fbfa3';
     public static readonly API_KEY_V2: string = '38e8643fb0dc04e8d65b99994d3dafff';
 
+    public readonly ctime: string = Math.floor(Date.now() / 1000).toString();
+
     private readonly jar: Cookies;
     private readonly instance: AxiosInstance;
 
-    public get ctime(): string {
-        return Math.floor(Date.now() / 1000).toString();
-    }
 
     public maxRate: RequiredClientOptions['maxRate'];
 
@@ -97,23 +98,19 @@ class ZingClient {
 
         try {
             if (this.jar.getCookies(ZingClient.BASE_URL).length === 0)
-                await this.instance.get('/');
+                void await this.instance.get('/');
 
-            const response: AxiosResponse<UriVideo> = await this.instance.get(uri, {
+            const response: AxiosResponse<Uri.Video> = await this.instance.get(uri, {
                 params: {
                     id: videoID,
                     sig: createSignature(uri, 'ctime=' + this.ctime + 'id=' + videoID + 'version=' + ZingClient.VERSION_URL_V1, ZingClient.SECRET_KEY_V1)
-                },
-                maxRate: [
-                    100 * 1024,
-                    this.maxRate[0]
-                ]
+                }
             });
 
             const body = response.data;
 
             if (body.err !== 0)
-                throw new Lapse(body.msg, 'ERROR_VIDEO_NOT_FOUND');
+                throw new Lapse('Video could not be found', 'ERROR_VIDEO_NOT_FOUND', response.status, body);
 
             const videoURL = body.data?.streaming?.hls?.['360p'];
 
@@ -183,17 +180,13 @@ class ZingClient {
 
         try {
             if (this.jar.getCookies(ZingClient.BASE_URL).length === 0)
-                await this.instance.get('/');
+                void await this.instance.get('/');
 
-            const response: AxiosResponse<UriStreaming> = await this.instance.get(uri, {
+            const response: AxiosResponse<Uri.Music> = await this.instance.get(uri, {
                 params: {
                     id: musicID,
                     sig: createSignature(uri, 'ctime=' + this.ctime + 'id=' + musicID + 'version=' + ZingClient.VERSION_URL_V1, ZingClient.SECRET_KEY_V1)
-                },
-                maxRate: [
-                    100 * 1024,
-                    this.maxRate[0]
-                ]
+                }
             });
 
             const body = response.data;
@@ -203,18 +196,14 @@ class ZingClient {
                 const uri_v2 = '/api/song/get-song-info';
 
                 for (let step = 0; step < 2; step++) {
-                    const retry: AxiosResponse<UriStreaming> = await this.instance.get(uri_v2, {
+                    const retry: AxiosResponse<Uri.Music> = await this.instance.get(uri_v2, {
                         params: {
                             id: musicID,
                             api_key: ZingClient.API_KEY_V2,
                             sig: createSignature('/song/get-song-info', 'ctime=' + this.ctime + 'id=' + musicID, ZingClient.SECRET_KEY_V2),
                             version: void 0,
                             apiKey: void 0
-                        },
-                        maxRate: [
-                            100 * 1024,
-                            this.maxRate[0]
-                        ]
+                        }
                     });
 
                     if (retry.data.err === 0) {
@@ -225,11 +214,11 @@ class ZingClient {
                 }
 
                 if (!retrySuccess)
-                    throw new Lapse('Music requested by VIP, PRI', 'ERROR_MUSIC_VIP_ONLY');
+                    throw new Lapse('Music requested by VIP, PRI', 'ERROR_MUSIC_VIP_ONLY', response.status, body);
             } else if (body.err === 0)
                 musicURL = body.data?.[128];
             else
-                throw new Lapse('This song could not be found', 'ERROR_MUSIC_NOT_FOUND');
+                throw new Lapse('This song could not be found', 'ERROR_MUSIC_NOT_FOUND', response.status, body);
 
             if (!musicURL || !musicURL.length)
                 throw new Lapse('Streaming URL not found', 'ERROR_STREAM_URL_NOT_FOUND');
@@ -286,6 +275,64 @@ class ZingClient {
             );
 
         return music;
+    }
+
+    public async search(keyword: string): Promise<ResponseSearch[]> {
+        if (typeof keyword !== 'string' || !keyword.trim().length)
+            throw new Lapse('Keyword must be a non-empty string', 'ERROR_INVALID_KEYWORD');
+        
+        const uri = '/api/v2/search/multi';
+
+        try {
+            if (this.jar.getCookies(ZingClient.BASE_URL).length === 0)
+                void await this.instance.get('/');
+
+            const response: AxiosResponse<Uri.Search> = await this.instance.get(uri, {
+                params: {
+                    q: keyword,
+                    sig: createSignature(uri, 'ctime=' + this.ctime + 'version=' + ZingClient.VERSION_URL_V1, ZingClient.SECRET_KEY_V1)
+                }
+            });
+
+            const body = response.data;
+
+            if (body.err !== 0)
+                throw new Lapse('Could not perform search', 'ERROR_SEARCH_FAILED', response.status, body);
+
+           const songs = body.data?.songs ?? [];
+
+            return songs.map(
+                (song): ResponseSearch => ({
+                    id: song.encodeId,
+                    name: song.title,
+                    alias: song.alias,
+                    isOffical: song.isOffical,
+                    username: song.username,
+                    artists: song.artists.map(
+                        (artist) => ({
+                            id: artist.id,
+                            name: artist.name,
+                            alias: artist.alias,
+                            thumbnail: {
+                                w240: artist.thumbnailM,
+                                w360: artist.thumbnail
+                            }
+                        })
+                    ),
+                    thumbnail: {
+                        w94: song.thumbnailM,
+                        w240: song.thumbnail
+                    },
+                    duration: song.duration,
+                    releaseDate: song.releaseDate
+                })
+            );
+        } catch (error: unknown) {
+            if (error instanceof Lapse)
+                throw error;
+
+            throw new Lapse('Failed to perform search', 'ERROR_SEARCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+        }
     }
 }
 

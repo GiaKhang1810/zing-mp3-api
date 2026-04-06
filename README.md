@@ -1,101 +1,85 @@
 # @khang07/zing-mp3-api
 
-Node.js library để lấy stream nhạc và video từ Zing MP3 dưới dạng `Readable` stream.
+A lightweight Node.js library for working with Zing MP3 streams.
 
-Package này hiện tập trung vào 2 tác vụ chính:
+This package focuses on a small, practical API:
+- fetch a music stream by song ID
+- fetch a video stream by video ID
+- search songs by keyword
+- expose a reusable cookie jar utility
+- expose the signature generator used by the API
+- wrap library failures with a dedicated `Lapse` error class
 
-- Lấy **nhạc** theo ID và trả về stream audio
-- Lấy **video** theo ID và trả về stream video HLS
+The package ships with:
+- ESM build
+- CommonJS build
+- TypeScript declarations
 
-Library build sẵn cho cả **ESM** và **CommonJS**, có type cho TypeScript.
+## Features
 
-## Tính năng
+- Stream music as a Node.js `Readable`
+- Stream video as a Node.js `Readable`
+- Sync-like helpers that return a stream immediately and pipe later
+- Built-in cookie handling for Zing requests
+- Typed response for `search()`
+- Small public surface area
 
-- Export sẵn `client` dùng ngay
-- Có thể tự tạo `new Client()` để chỉnh tốc độ stream/buffer
-- Trả về `Readable` stream để pipe thẳng ra file, HTTP response, Discord voice pipeline, hoặc xử lý tiếp
-- Có cookie jar nội bộ để giữ cookie giữa các request
-- Có chữ ký request nội bộ cho API đang dùng
-- Hỗ trợ ESM, CJS, TypeScript
-
-## Cài đặt
+## Installation
 
 ```bash
 npm install @khang07/zing-mp3-api
 ```
 
-hoặc
+## Requirements
 
-```bash
-bun add @khang07/zing-mp3-api
-```
+- Node.js
+- A runtime that supports Node streams
 
-## Yêu cầu môi trường
+## Package exports
 
-Package này chạy cho **Node.js**, không dành cho browser vì dùng:
-
-- `node:stream`
-- `node:crypto`
-- `axios` với Node adapter
-- `m3u8stream`
-
-## Dùng nhanh
-
-### ESM
+Main package:
 
 ```ts
+import client, { ZingClient } from "@khang07/zing-mp3-api";
+```
+
+Subpath exports:
+
+```ts
+import { Cookies } from "@khang07/zing-mp3-api/utils/cookies";
+import { createSignature } from "@khang07/zing-mp3-api/utils/encrypt";
+import { Lapse } from "@khang07/zing-mp3-api/utils/lapse";
+```
+
+## Quick start
+
+### Use the default client
+
+```ts
+import fs from "node:fs";
 import client from "@khang07/zing-mp3-api";
-import { createWriteStream } from "node:fs";
 
-const writer = createWriteStream("music.mp3");
-const stream = await client.music("MUSIC_ID");
-
-stream.pipe(writer);
+const stream = await client.music("Z7ACBFEF");
+stream.pipe(fs.createWriteStream("music.mp3"));
 ```
 
-### ESM với named import
+### Create your own client
 
 ```ts
-import { client, Client } from "@khang07/zing-mp3-api";
-import { createWriteStream } from "node:fs";
+import { ZingClient } from "@khang07/zing-mp3-api";
 
-const musicWriter = createWriteStream("music.mp3");
-client.musicSyncLike("MUSIC_ID").pipe(musicWriter);
-
-const customClient = new Client({
-    maxRate: [256 * 1024, 64 * 1024]
-});
-
-const videoWriter = createWriteStream("video.bin");
-const videoStream = await customClient.video("VIDEO_ID");
-videoStream.pipe(videoWriter);
-```
-
-### CommonJS
-
-```js
-const { client, Client } = require("@khang07/zing-mp3-api");
-const { createWriteStream } = require("node:fs");
-
-const writer = createWriteStream("music.mp3");
-client.musicSyncLike("MUSIC_ID").pipe(writer);
-```
-
-## API
-
-### `new Client(options?)`
-
-Tạo client mới.
-
-```ts
-import { Client } from "@khang07/zing-mp3-api";
-
-const client = new Client({
+const client = new ZingClient({
     maxRate: [100 * 1024, 16 * 1024]
 });
 ```
 
-#### `ClientOptions`
+## API
+
+### `new ZingClient(options?)`
+
+Create a new client instance.
+
+#### Parameters
 
 ```ts
 interface ClientOptions {
@@ -103,221 +87,390 @@ interface ClientOptions {
 }
 ```
 
-Ý nghĩa:
+#### Notes
 
-- `download`: giới hạn tốc độ download cho request stream
-- `highWaterMark`: buffer size cho `PassThrough` của các hàm `SyncLike`
+- `maxRate[0]`: download rate limit passed to Axios
+- `maxRate[1]`: `highWaterMark` used by `musicSyncLike()` and `videoSyncLike()`
 
-Giá trị mặc định:
+### `client.music(musicID)`
+
+Fetches a music stream by song ID.
+
+#### Signature
 
 ```ts
-[100 * 1024, 16 * 1024]
+music(musicID: string): Promise<Readable>
 ```
 
-## Các method
+#### Returns
 
-### `await client.music(musicID)`
+A `Promise<Readable>` for the audio stream.
 
-Trả về `Promise<Readable>` cho audio stream.
+#### Example
 
 ```ts
+import fs from "node:fs";
 import client from "@khang07/zing-mp3-api";
-import { createWriteStream } from "node:fs";
 
-const output = createWriteStream("music.mp3");
-const stream = await client.music("ZZEEOZEC");
-
-stream.pipe(output);
+const music = await client.music("Z7ACBFEF");
+music.pipe(fs.createWriteStream("track.mp3"));
 ```
 
-Ghi chú:
+#### Behavior
 
-- Method này gọi API `/api/v2/song/get/streaming`
-- Hiện tại code lấy URL tại `data[128]`
-- Nghĩa là implementation hiện tại đang dùng nhánh stream **128 kbps**
+- validates the input ID
+- initializes cookies if needed
+- requests the Zing streaming endpoint
+- retries a secondary endpoint for some VIP/PRI-style responses
+- throws a `Lapse` when the song cannot be streamed
 
 ### `client.musicSyncLike(musicID)`
 
-Trả về `Readable` ngay để có thể pipe trực tiếp, phù hợp khi bạn muốn viết ngắn hơn.
+Returns a stream immediately and starts resolving the remote source in the background.
+
+#### Signature
 
 ```ts
-import client from "@khang07/zing-mp3-api";
-import { createWriteStream } from "node:fs";
-
-client.musicSyncLike("ZZEEOZEC").pipe(createWriteStream("music.mp3"));
+musicSyncLike(musicID: string): Readable
 ```
 
-### `await client.video(videoID)`
-
-Trả về `Promise<Readable>` cho video stream.
+#### Example
 
 ```ts
+import fs from "node:fs";
 import client from "@khang07/zing-mp3-api";
-import { createWriteStream } from "node:fs";
 
-const output = createWriteStream("video.bin");
-const stream = await client.video("ZZEEOZEC");
-
-stream.pipe(output);
+const music = client.musicSyncLike("Z7ACBFEF");
+music.pipe(fs.createWriteStream("track.mp3"));
 ```
 
-Ghi chú quan trọng:
+#### When to use
 
-- Method này gọi API `/api/v2/page/get/video`
-- Hiện tại code chỉ lấy `streaming.hls["360p"]`
-- Đây là **HLS stream** lấy qua `m3u8stream`
-- Library **không transcode**, **không remux**, **không ép sang MP4 thật**
-- Vì vậy bạn nên xem dữ liệu trả về là **stream media thô từ HLS**, không nên mặc định coi nó luôn là file `.mp4` chuẩn
+Use this when you want a stream object right away instead of awaiting `Promise<Readable>`.
+
+### `client.video(videoID)`
+
+Fetches a video stream by video ID.
+
+#### Signature
+
+```ts
+video(videoID: string): Promise<Readable>
+```
+
+#### Returns
+
+A `Promise<Readable>` for the video stream.
+
+#### Example
+
+```ts
+import fs from "node:fs";
+import client from "@khang07/zing-mp3-api";
+
+const video = await client.video("ZO8I9ZZC");
+video.pipe(fs.createWriteStream("video.ts"));
+```
+
+#### Behavior
+
+- validates the input ID
+- initializes cookies if needed
+- requests the video endpoint
+- reads the HLS `360p` stream URL from the response
+- uses `m3u8stream` to produce the returned stream
+
+#### Important
+
+The current implementation streams HLS media from the `360p` source. It does **not** remux or convert the output into MP4 by itself.
 
 ### `client.videoSyncLike(videoID)`
 
-Trả về `Readable` ngay để pipe trực tiếp.
+Returns a stream immediately and starts resolving the remote video source in the background.
+
+#### Signature
 
 ```ts
-import client from "@khang07/zing-mp3-api";
-import { createWriteStream } from "node:fs";
-
-client.videoSyncLike("ZZEEOZEC").pipe(createWriteStream("video.bin"));
+videoSyncLike(videoID: string): Readable
 ```
 
-## Bắt lỗi
-
-Khi có lỗi, code ném ra error với các field thực tế đang có trong implementation:
-
-- `name`: `ZING_MP3_ERROR`
-- `message`
-- `code`
-- `status` (nếu có)
-- `cause` (nếu có)
-
-Các mã lỗi đang xuất hiện trong source:
-
-- `ERROR_INVALID_ID`
-- `ERROR_MUSIC_NOT_FOUND`
-- `ERROR_MUSIC_VIP_ONLY`
-- `ERROR_VIDEO_NOT_FOUND`
-- `ERROR_STREAM_URL_NOT_FOUND`
-- `ERROR_STREAM_DOWNLOAD`
-- `ERROR_MUSIC_FETCH`
-- `ERROR_VIDEO_FETCH`
-
-Ví dụ:
+#### Example
 
 ```ts
+import fs from "node:fs";
 import client from "@khang07/zing-mp3-api";
-import { createWriteStream } from "node:fs";
 
-try {
-    const stream = await client.music("ZZEEOZEC");
-    const writer = createWriteStream("music.mp3");
+const video = client.videoSyncLike("ZO8I9ZZC");
+video.pipe(fs.createWriteStream("video.ts"));
+```
 
-    stream.on("error", (error) => {
-        console.error("Stream error:", error);
-    });
+### `client.search(keyword)`
 
-    writer.on("error", (error) => {
-        console.error("Write error:", error);
-    });
+Searches songs by keyword.
 
-    stream.pipe(writer);
-} catch (error) {
-    console.error(error);
+#### Signature
+
+```ts
+search(keyword: string): Promise<ResponseSearch[]>
+```
+
+#### Return type
+
+```ts
+interface ResponseSearch {
+    id: string;
+    name: string;
+    alias: string;
+    isOffical: boolean;
+    username: string;
+    artists: {
+        id: string;
+        name: string;
+        alias: string;
+        thumbnail: {
+            w240: string;
+            w360: string;
+        };
+    }[];
+    thumbnail: {
+        w94: string;
+        w240: string;
+    };
+    duration: number;
+    releaseDate: number;
 }
 ```
 
-## Dùng với HTTP server
+#### Example
 
 ```ts
-import http from "node:http";
 import client from "@khang07/zing-mp3-api";
 
-const server = http.createServer(async (_req, res) => {
-    try {
-        const stream = await client.music("ZZEEOZEC");
+const results = await client.search("mở mắt");
 
-        res.writeHead(200, {
-            "Content-Type": "audio/mpeg"
-        });
+for (const song of results) {
+    console.log(song.id, song.name, song.artists.map((artist) => artist.name).join(", "));
+}
+```
 
-        stream.on("error", () => {
-            if (!res.headersSent)
-                res.writeHead(500);
+#### Important
 
-            res.end("Stream failed");
-        });
+The current implementation only maps the `songs` section from the search response. It does not currently return artists, playlists, or videos.
 
-        stream.pipe(res);
-    } catch {
-        res.writeHead(500);
-        res.end("Failed to fetch music");
+## Utility exports
+
+### `Cookies`
+
+A lightweight in-memory cookie jar.
+
+#### Available methods
+
+```ts
+class Cookies {
+    setCookie(setCookie: string, requestUrl: string): void;
+    setCookies(setCookies: string[] | undefined, requestUrl: string): void;
+    getCookies(requestUrl: string): CookieRecord[];
+    getCookieHeader(requestUrl: string): string;
+    applyToHeaders(requestUrl: string, headers?: Record<string, string>): Record<string, string>;
+    deleteCookie(domain: string, path: string, name: string): void;
+    cleanup(): void;
+    toJSON(): CookieRecord[];
+    fromJSON(cookies: CookieRecord[]): void;
+}
+```
+
+#### Example
+
+```ts
+import { Cookies } from "@khang07/zing-mp3-api/utils/cookies";
+
+const jar = new Cookies();
+jar.setCookie("sessionid=abc123; Path=/; HttpOnly", "https://zingmp3.vn/");
+
+const headers = jar.applyToHeaders("https://zingmp3.vn/api/v2/song/get/streaming");
+console.log(headers.Cookie);
+```
+
+### `createSignature(uri, params, secret)`
+
+Creates the request signature used by the Zing endpoints.
+
+#### Signature
+
+```ts
+createSignature(uri: string, params: string, secret: string): string
+```
+
+#### Example
+
+```ts
+import { createSignature } from "@khang07/zing-mp3-api/utils/encrypt";
+
+const sig = createSignature(
+    "/api/v2/song/get/streaming",
+    "ctime=1234567890id=Z7ACBFEFversion=1.6.34",
+    "2aa2d1c561e809b267f3638c4a307aab"
+);
+
+console.log(sig);
+```
+
+### `Lapse`
+
+A custom error class used by the library.
+
+#### Signature
+
+```ts
+class Lapse extends Error {
+    code: string;
+    status?: number;
+    cause?: unknown;
+}
+```
+
+#### Example
+
+```ts
+import client from "@khang07/zing-mp3-api";
+import { Lapse } from "@khang07/zing-mp3-api/utils/lapse";
+
+try {
+    await client.music("");
+} catch (error) {
+    if (error instanceof Lapse) {
+        console.error(error.name);
+        console.error(error.code);
+        console.error(error.message);
+        console.error(error.status);
     }
-});
-
-server.listen(3000);
+}
 ```
 
-## Build từ source
+## Error codes
 
-Project đang dùng TypeScript + Rollup + API Extractor.
+The current codebase throws these `Lapse.code` values:
 
-```bash
-bun install
-bun run build
+| Code | Meaning |
+|---|---|
+| `ERROR_INVALID_ID` | `music()` or `video()` received an empty or invalid ID |
+| `ERROR_INVALID_KEYWORD` | `search()` received an empty keyword |
+| `ERROR_MUSIC_NOT_FOUND` | Music was not found from the primary endpoint |
+| `ERROR_MUSIC_VIP_ONLY` | Music required access not available through the fallback flow |
+| `ERROR_VIDEO_NOT_FOUND` | Video was not found |
+| `ERROR_STREAM_URL_NOT_FOUND` | The API response did not contain a playable stream URL |
+| `ERROR_STREAM_DOWNLOAD` | The download stream failed while reading data |
+| `ERROR_MUSIC_FETCH` | A non-library failure occurred while fetching music |
+| `ERROR_VIDEO_FETCH` | A non-library failure occurred while fetching video |
+| `ERROR_SEARCH_FAILED` | Search endpoint returned an error response |
+| `ERROR_SEARCH` | A non-library failure occurred while performing search |
+
+## Demo
+
+### Download a song to file
+
+```ts
+import fs from "node:fs";
+import client from "@khang07/zing-mp3-api";
+import { Lapse } from "@khang07/zing-mp3-api/utils/lapse";
+
+async function main(): Promise<void> {
+    try {
+        const stream = await client.music("Z7ACBFEF");
+        stream.pipe(fs.createWriteStream("song.mp3"));
+    } catch (error) {
+        if (error instanceof Lapse)
+            console.error(error.code, error.message);
+        else
+            console.error(error);
+    }
+}
+
+void main();
 ```
 
-Output build:
+### Download a video stream to file
 
-- `dist/esm` → bản ESM
-- `dist/cjs` → bản CommonJS
-- `dist/types` → type declarations gộp
+```ts
+import fs from "node:fs";
+import client from "@khang07/zing-mp3-api";
 
-Các script hiện có:
+async function main(): Promise<void> {
+    const stream = await client.video("ZO8I9ZZC");
+    stream.pipe(fs.createWriteStream("video.ts"));
+}
 
-```bash
-bun run build:esm
-bun run build:cjs
-bun run build:types
-bun run build
+void main();
 ```
 
-## Cấu trúc dự án
+### Search then download the first result
 
-```text
-source/
-  index.ts
-  types/
-  utils/
-dist/
-  esm/
-  cjs/
-  types/
+```ts
+import fs from "node:fs";
+import client from "@khang07/zing-mp3-api";
+import { Lapse } from "@khang07/zing-mp3-api/utils/lapse";
+
+async function main(): Promise<void> {
+    try {
+        const results = await client.search("mở mắt");
+        const first = results[0];
+
+        if (!first)
+            throw new Error("No result found");
+
+        const stream = await client.music(first.id);
+        stream.pipe(fs.createWriteStream(first.alias + ".mp3"));
+    } catch (error) {
+        if (error instanceof Lapse)
+            console.error(error.code, error.message);
+        else
+            console.error(error);
+    }
+}
+
+void main();
 ```
 
-## Ghi chú triển khai hiện tại
-
-Có vài điểm cần lưu ý:
-
-- Chưa có API search public trong `Client` dù đang export type `SearchCategory`
-- Video hiện mới lấy nhánh `360p`
-- Music hiện mới lấy nhánh `128kps`
-- Package phụ thuộc vào cấu trúc API/cookie/signature hiện tại của Zing MP3, nên nếu upstream đổi thì cần cập nhật source
-
-## Ghi chú về file test trong repo
-
-Trong repo hiện có `test/index.js` và `test/index.cjs`, nhưng chúng đang import từ `"zing-mp3-api"`.
-
-Khi publish theo `package.json` hiện tại, import đúng cho người dùng ngoài sẽ là:
+## CommonJS example
 
 ```js
-import { client } from "@khang07/zing-mp3-api";
+const fs = require("node:fs");
+const zing = require("@khang07/zing-mp3-api");
+
+async function main() {
+    const client = zing.default;
+    const stream = await client.music("Z7ACBFEF");
+    stream.pipe(fs.createWriteStream("track.mp3"));
+}
+
+main();
 ```
 
-hoặc:
+## Build
 
-```js
-const { client } = require("@khang07/zing-mp3-api");
+```bash
+npm run build
 ```
+
+Current scripts in the project:
+
+```json
+{
+  "build:esm": "tsc -p tsconfig.json",
+  "build:cjs": "rollup -c",
+  "build": "rm -rf dist && bun run build:esm && bun run build:cjs && rm -fr dist/esm/types dist/cjs/types",
+  "test": "mocha"
+}
+```
+
+## Notes
+
+- The default export is a preconfigured client instance.
+- The named export is `ZingClient`.
+- Search currently returns songs only.
+- Video currently streams HLS `360p`.
+- Errors are wrapped in `Lapse` for consistent handling.
 
 ## License
 
-Xem tại [LICENSE](https://github.com/GiaKhang1810/zing-mp3-api#license)
+MIT

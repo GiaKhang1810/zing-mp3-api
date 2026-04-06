@@ -1,5 +1,3 @@
-type SearchCategory = 'artist' | 'music' | 'playlist' | 'video';
-
 interface ClientOptions {
     maxRate?: [Download?: number, HighWaterMark?: number];
 }
@@ -10,6 +8,5 @@ interface RequiredClientOptions {
 
 export type {
     ClientOptions,
-    RequiredClientOptions,
-    SearchCategory
+    RequiredClientOptions
 }
