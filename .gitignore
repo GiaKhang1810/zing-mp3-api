@@ -1,5 +1,6 @@
 node_modules/
 dist/
+cached/
 
 package-lock.json
 bun.lock

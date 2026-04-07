@@ -1,25 +1,39 @@
 import axios from 'axios';
 import m3u8stream from 'm3u8stream';
 
-import { Readable, PassThrough } from 'node:stream';
+import { PassThrough } from 'node:stream';
 
 import { Cookies } from './utils/cookies.js';
 import { createSignature } from './utils/encrypt.js';
 import { Lapse } from './utils/lapse.js';
+import { createArtist, createMedia, createMediaWithoutAlbum, createPlayList, createSearchArtist, createSearchPlayList } from './utils/refined.js';
 
-import type { AxiosInstance, AxiosResponse, CreateAxiosDefaults } from 'axios';
-
-import type { ResponseSearch } from './types/fetch/response.js';
-import type { Uri } from './types/fetch/uri.js';
-import type { ClientOptions, RequiredClientOptions } from './types/index.js';
+import type { AxiosInstance } from 'axios';
+import { Readable } from 'node:stream';
+import type { ClientOptions, SearchCategory } from './types/index.js';
+import type { RawArtist, RawMedia, RawMusic, RawPlayList, RawSearch, RawSearchArtist, RawSearchMedia, RawSearchPlayList, RawVideo, ResponseData } from './types/raw.js';
+import type { Artist, Media, SearhMedia, PlayList, SearchPlayList, ArtistRef, SearchArtist } from './types/response.js';
 
 export type {
-    ResponseSearch,
-
-    ClientOptions
+    Cookies,
+    ClientOptions,
+    PlayList,
+    Artist,
+    Media,
+    SearhMedia,
+    SearchPlayList
 }
 
-class ZingClient {
+const isURL = (value: string): boolean => {
+    try {
+        new URL(value);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+class Client {
     public static readonly BASE_URL: string = 'https://zingmp3.vn/';
 
     public static readonly VERSION_URL_V1: string = '1.6.34';
@@ -31,41 +45,54 @@ class ZingClient {
     public static readonly API_KEY_V1: string = '88265e23d4284f25963e6eedac8fbfa3';
     public static readonly API_KEY_V2: string = '38e8643fb0dc04e8d65b99994d3dafff';
 
-    public readonly ctime: string = Math.floor(Date.now() / 1000).toString();
+    public static readonly API_VIDEO_PATH: string = '/api/v2/page/get/video';
+    public static readonly API_MUSIC_PATH: string = '/api/v2/song/get/streaming';
+    public static readonly EXTRA_API_MUSIC_PATH: string = '/api/song/get-song-info';
+    public static readonly API_SEARCH_PATH: string = '/api/v2/search';
+    public static readonly API_PLAYLIST_PATH: string = '/api/v2/page/get/playlist';
+    public static readonly API_MEDIA_DETAILS_PATH: string = '/api/v2/song/get/info';
+    public static readonly API_ARTIST_PATH: string = '/api/v2/page/get/artist';
 
-    private readonly jar: Cookies;
+    public static getIDFromURL(url: string): string {
+        if (typeof url !== 'string' || !url.trim().length)
+            throw new Lapse('URL must be a non-empty string', 'ERROR_INVALID_URL');
+
+        const match: RegExpMatchArray | null = url.match(/\/([A-Z0-9]{8})\.html(?:\?|#|$)/i) || url.match(/^https?:\/\/zingmp3\.vn\/([^/?#]+)\/?(?:[?#].*)?$/i);
+
+        if (!match)
+            throw new Lapse('Could not extract ID from URL', 'ERROR_INVALID_URL');
+
+        return match[1];
+    }
+
+    private readonly ctime: string = Math.floor(Date.now() / 1000).toString();
     private readonly instance: AxiosInstance;
-
-
-    public maxRate: RequiredClientOptions['maxRate'];
+    private readonly maxLoad: Required<ClientOptions>['maxLoad'];
+    private readonly maxHighWaterMark: Required<ClientOptions>['maxHighWaterMark'];
+    private readonly userAgent: Required<ClientOptions>['userAgent'];
+    private readonly jar: Required<ClientOptions>['jar'];
 
     public constructor(options: ClientOptions = {}) {
-        this.maxRate = [
-            options?.maxRate?.[0] ?? 100 * 1024,
-            options?.maxRate?.[1] ?? 16 * 1024
-        ];
+        this.maxLoad = options.maxLoad ?? 16 * 1024;
+        this.maxHighWaterMark = options.maxHighWaterMark ?? this.maxLoad;
+        this.userAgent = options?.userAgent ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3';
+        this.jar = options.jar instanceof Cookies ? options.jar : new Cookies();
 
-        this.jar = new Cookies();
-
-        const axiosOptions: CreateAxiosDefaults<AxiosInstance> = {
-            baseURL: ZingClient.BASE_URL,
+        this.instance = axios.create({
+            baseURL: Client.BASE_URL,
             params: {
-                version: ZingClient.VERSION_URL_V1,
-                apiKey: ZingClient.API_KEY_V1,
+                version: Client.VERSION_URL_V1,
+                apiKey: Client.API_KEY_V1,
                 ctime: this.ctime
             },
-            maxRate: [
-                100 * 1024,
-                this.maxRate[0]
-            ],
+            maxRate: this.maxLoad,
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+                'User-Agent': this.userAgent
             }
-        }
-        this.instance = axios.create(axiosOptions);
+        });
 
         this.instance.interceptors.request.use(
-            (options) => {
+            async (options) => {
                 const base = options.baseURL ?? '';
                 const url = new URL(options.url ?? '/', base).toString();
 
@@ -85,48 +112,52 @@ class ZingClient {
                 if (requestUrl && Array.isArray(setCookie))
                     this.jar.setCookies(setCookie, requestUrl);
 
-                return response;
+                return response.data;
             }
         );
     }
 
-    public async video(videoID: string): Promise<Readable> {
-        if (typeof videoID !== 'string' || !videoID.length)
+    private async ensureCookies(): Promise<void> {
+        if (this.jar.getCookies(Client.BASE_URL).length === 0)
+            void await this.instance.get('/');
+    }
+
+    public async video(videoID: string | URL): Promise<Readable> {
+        const value = videoID instanceof URL ? videoID.toString() : videoID;
+
+        if (typeof value !== 'string' || !value.trim().length)
             throw new Lapse('ID must be a non-empty string', 'ERROR_INVALID_ID');
 
-        const uri = '/api/v2/page/get/video';
-
         try {
-            if (this.jar.getCookies(ZingClient.BASE_URL).length === 0)
-                void await this.instance.get('/');
+            videoID = isURL(value) ? Client.getIDFromURL(value) : value;
 
-            const response: AxiosResponse<Uri.Video> = await this.instance.get(uri, {
+            void await this.ensureCookies();
+
+            const response: ResponseData<RawVideo> = await this.instance.get(Client.API_VIDEO_PATH, {
                 params: {
                     id: videoID,
-                    sig: createSignature(uri, 'ctime=' + this.ctime + 'id=' + videoID + 'version=' + ZingClient.VERSION_URL_V1, ZingClient.SECRET_KEY_V1)
+                    sig: createSignature(Client.API_VIDEO_PATH, 'ctime=' + this.ctime + 'id=' + videoID + 'version=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
                 }
             });
 
-            const body = response.data;
+            if (response.err !== 0)
+                throw new Lapse('Video could not be found', 'ERROR_VIDEO_NOT_FOUND', response.err, response);
 
-            if (body.err !== 0)
-                throw new Lapse('Video could not be found', 'ERROR_VIDEO_NOT_FOUND', response.status, body);
-
-            const videoURL = body.data?.streaming?.hls?.['360p'];
+            const videoURL: string | void = response.data?.streaming?.hls?.['720p'] || response.data?.streaming?.hls?.['360p'];
 
             if (!videoURL || !videoURL.length)
                 throw new Lapse('Streaming URL not found', 'ERROR_STREAM_URL_NOT_FOUND');
 
-            const streamVideo = m3u8stream(videoURL);
+            const source: Readable = m3u8stream(videoURL);
 
-            streamVideo.once('error',
+            source.once('error',
                 (error: unknown): void => {
                     const lapse = new Lapse('Stream download failed', 'ERROR_STREAM_DOWNLOAD', void 0, error);
-                    streamVideo.destroy(lapse);
+                    source.destroy(lapse);
                 }
             );
 
-            return streamVideo;
+            return source;
         } catch (error: unknown) {
             if (error instanceof Lapse)
                 throw error;
@@ -135,8 +166,8 @@ class ZingClient {
         }
     }
 
-    public videoSyncLike(videoID: string): Readable {
-        const video = new PassThrough({ highWaterMark: this.maxRate[1] });
+    public videoSync(videoID: string | URL): Readable {
+        const video = new PassThrough({ highWaterMark: this.maxHighWaterMark });
 
         void this.video(videoID)
             .then(
@@ -171,68 +202,63 @@ class ZingClient {
         return video;
     }
 
-    public async music(musicID: string): Promise<Readable> {
-        if (typeof musicID !== 'string' || !musicID.trim().length)
+    public async music(musicID: string | URL): Promise<Readable> {
+        const value = musicID instanceof URL ? musicID.toString() : musicID;
+
+        if (typeof value !== 'string' || !value.trim().length)
             throw new Lapse('ID must be a non-empty string', 'ERROR_INVALID_ID');
 
-        let musicURL: string | undefined;
-        const uri = '/api/v2/song/get/streaming';
-
         try {
-            if (this.jar.getCookies(ZingClient.BASE_URL).length === 0)
-                void await this.instance.get('/');
+            musicID = isURL(value) ? Client.getIDFromURL(value) : value;
 
-            const response: AxiosResponse<Uri.Music> = await this.instance.get(uri, {
+            void await this.ensureCookies();
+
+            const response: ResponseData<RawMusic> = await this.instance.get(Client.API_MUSIC_PATH, {
                 params: {
                     id: musicID,
-                    sig: createSignature(uri, 'ctime=' + this.ctime + 'id=' + musicID + 'version=' + ZingClient.VERSION_URL_V1, ZingClient.SECRET_KEY_V1)
+                    sig: createSignature(Client.API_MUSIC_PATH, 'ctime=' + this.ctime + 'id=' + musicID + 'version=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
                 }
             });
 
-            const body = response.data;
+            let musicURL: string | void = response.data?.[320] && response.data[320] !== 'VIP' ? response.data[320] : response.data?.[128];
 
-            if (body.err === -1150) {
-                let retrySuccess = false;
-                const uri_v2 = '/api/song/get-song-info';
+            if (response.err === -1150) {
+                const retry = async (step: number, before?: ResponseData<RawMusic>): Promise<string | void> => {
+                    if (step > 3)
+                        throw new Lapse('Music requested by VIP, PRI', 'ERROR_MUSIC_VIP_ONLY', before ? before.err : void 0, before);
 
-                for (let step = 0; step < 2; step++) {
-                    const retry: AxiosResponse<Uri.Music> = await this.instance.get(uri_v2, {
+                    const retryData: ResponseData<RawMusic> = await this.instance.get(Client.EXTRA_API_MUSIC_PATH, {
                         params: {
                             id: musicID,
-                            api_key: ZingClient.API_KEY_V2,
-                            sig: createSignature('/song/get-song-info', 'ctime=' + this.ctime + 'id=' + musicID, ZingClient.SECRET_KEY_V2),
+                            api_key: Client.API_KEY_V2,
+                            sig: createSignature('/song/get-song-info', 'ctime=' + this.ctime + 'id=' + musicID, Client.SECRET_KEY_V2),
                             version: void 0,
                             apiKey: void 0
                         }
                     });
 
-                    if (retry.data.err === 0) {
-                        retrySuccess = true;
-                        musicURL = retry.data.data?.streaming?.default?.[128];
-                        break;
-                    }
+                    if (retryData.err === 0)
+                        return retryData.data?.streaming?.default?.[128];
+
+                    return retry(step + 1, retryData);
                 }
 
-                if (!retrySuccess)
-                    throw new Lapse('Music requested by VIP, PRI', 'ERROR_MUSIC_VIP_ONLY', response.status, body);
-            } else if (body.err === 0)
-                musicURL = body.data?.[128];
-            else
-                throw new Lapse('This song could not be found', 'ERROR_MUSIC_NOT_FOUND', response.status, body);
+                musicURL = await retry(0);
+            }
 
             if (!musicURL || !musicURL.length)
                 throw new Lapse('Streaming URL not found', 'ERROR_STREAM_URL_NOT_FOUND');
 
-            const streamMusic: AxiosResponse<Readable> = await this.instance.get(musicURL, { responseType: 'stream' });
+            const source: Readable = await this.instance.get(musicURL, { responseType: 'stream' });
 
-            streamMusic.data.once('error',
+            source.once('error',
                 (error: unknown): void => {
-                    const lapse = new Lapse('Stream download failed', 'ERROR_STREAM_DOWNLOAD', streamMusic.status, error);
-                    streamMusic.data.destroy(lapse);
+                    const lapse = new Lapse('Stream download failed', 'ERROR_STREAM_DOWNLOAD', void 0, error);
+                    source.destroy(lapse);
                 }
             );
 
-            return streamMusic.data;
+            return source;
         } catch (error: unknown) {
             if (error instanceof Lapse)
                 throw error;
@@ -241,8 +267,8 @@ class ZingClient {
         }
     }
 
-    public musicSyncLike(musicID: string): Readable {
-        const music = new PassThrough({ highWaterMark: this.maxRate[1] });
+    public musicSync(musicID: string | URL): Readable {
+        const music = new PassThrough({ highWaterMark: this.maxHighWaterMark });
 
         void this.music(musicID)
             .then(
@@ -277,74 +303,222 @@ class ZingClient {
         return music;
     }
 
-    public async search(keyword: string): Promise<ResponseSearch[]> {
-        if (typeof keyword !== 'string' || !keyword.trim().length)
-            throw new Lapse('Keyword must be a non-empty string', 'ERROR_INVALID_KEYWORD');
-        
-        const uri = '/api/v2/search/multi';
+    public async playlist(playlistID: string | URL): Promise<PlayList> {
+        const value = playlistID instanceof URL ? playlistID.toString() : playlistID;
+
+        if (typeof value !== 'string' || !value.trim().length)
+            throw new Lapse('ID must be a non-empty string', 'ERROR_INVALID_ID');
 
         try {
-            if (this.jar.getCookies(ZingClient.BASE_URL).length === 0)
-                void await this.instance.get('/');
+            playlistID = isURL(value) ? Client.getIDFromURL(value) : value;
 
-            const response: AxiosResponse<Uri.Search> = await this.instance.get(uri, {
+            void await this.ensureCookies();
+
+            const response: ResponseData<RawPlayList> = await this.instance.get(Client.API_PLAYLIST_PATH, {
                 params: {
-                    q: keyword,
-                    sig: createSignature(uri, 'ctime=' + this.ctime + 'version=' + ZingClient.VERSION_URL_V1, ZingClient.SECRET_KEY_V1)
+                    id: playlistID,
+                    sig: createSignature(Client.API_PLAYLIST_PATH, 'ctime=' + this.ctime + 'id=' + playlistID + 'version=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
                 }
             });
 
-            const body = response.data;
+            if (response.err !== 0)
+                throw new Lapse('Could not find playlist', 'ERROR_PLAYLIST_NOT_FOUND', response.err, response);
 
-            if (body.err !== 0)
-                throw new Lapse('Could not perform search', 'ERROR_SEARCH_FAILED', response.status, body);
-
-           const songs = body.data?.songs ?? [];
-
-            return songs.map(
-                (song): ResponseSearch => ({
-                    id: song.encodeId,
-                    name: song.title,
-                    alias: song.alias,
-                    isOffical: song.isOffical,
-                    username: song.username,
-                    artists: song.artists.map(
-                        (artist) => ({
-                            id: artist.id,
-                            name: artist.name,
-                            alias: artist.alias,
-                            thumbnail: {
-                                w240: artist.thumbnailM,
-                                w360: artist.thumbnail
-                            }
-                        })
-                    ),
-                    thumbnail: {
-                        w94: song.thumbnailM,
-                        w240: song.thumbnail
-                    },
-                    duration: song.duration,
-                    releaseDate: song.releaseDate
-                })
-            );
+            return createPlayList(response.data);
         } catch (error: unknown) {
             if (error instanceof Lapse)
                 throw error;
 
-            throw new Lapse('Failed to perform search', 'ERROR_SEARCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw new Lapse('Failed to fetch playlist', 'ERROR_PLAYLIST_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+        }
+    }
+
+    public async artist(aliasID: string | URL): Promise<Artist> {
+        const value = aliasID instanceof URL ? aliasID.toString() : aliasID;
+
+        if (typeof value !== 'string' || !value.trim().length)
+            throw new Lapse('ID must be a non-empty string', 'ERROR_INVALID_ID');
+
+        try {
+            aliasID = isURL(value) ? Client.getIDFromURL(value) : value;
+
+            void await this.ensureCookies();
+
+            const response: ResponseData<RawArtist> = await this.instance.get(Client.API_ARTIST_PATH, {
+                params: {
+                    alias: aliasID,
+                    sig: createSignature(Client.API_ARTIST_PATH, 'ctime=' + this.ctime + 'version=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                }
+            });
+
+            if (response.err === -108)
+                throw new Lapse('Artist not found', 'ERROR_ARTIST_NOT_FOUND', response.err, response);
+
+            if (response.err !== 0)
+                throw new Lapse('Could not fetch artist', 'ERROR_ARTIST_FETCH', response.err, response);
+
+            return createArtist(response.data);
+        } catch (error: unknown) {
+            if (error instanceof Lapse)
+                throw error;
+
+            throw new Lapse('Failed to fetch artist', 'ERROR_ARTIST_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+        }
+    }
+
+    public async mediaDetails(mediaID: string | URL): Promise<Media> {
+        const value = mediaID instanceof URL ? mediaID.toString() : mediaID;
+
+        if (typeof value !== 'string' || !value.trim().length)
+            throw new Lapse('ID must be a non-empty string', 'ERROR_INVALID_ID');
+
+        try {
+            mediaID = isURL(value) ? Client.getIDFromURL(value) : value;
+
+            void await this.ensureCookies();
+
+            const response: ResponseData<RawMedia> = await this.instance.get(Client.API_MEDIA_DETAILS_PATH, {
+                params: {
+                    id: mediaID,
+                    sig: createSignature(Client.API_MEDIA_DETAILS_PATH, 'ctime=' + this.ctime + 'id=' + mediaID + 'version=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                }
+            });
+
+            if (response.err === -1023)
+                throw new Lapse('Media not found', 'ERROR_MEDIA_NOT_FOUND', response.err, response);
+
+            if (response.err !== 0)
+                throw new Lapse('Could not fetch media', 'ERROR_MEDIA_FETCH', response.err, response);
+
+            return createMedia(response.data);
+        } catch (error: unknown) {
+            if (error instanceof Lapse)
+                throw error;
+
+            throw new Lapse('Failed to fetch media', 'ERROR_MEDIA_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+        }
+    }
+
+    public async searchMusic(query: string): Promise<Media[]> {
+        if (typeof query !== 'string' || !query.trim().length)
+            throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
+
+        try {
+            void await this.ensureCookies();
+
+            const response: ResponseData<RawSearch<RawMedia>> = await this.instance.get(Client.API_SEARCH_PATH, {
+                params: {
+                    q: query,
+                    type: 'song',
+                    page: 1,
+                    count: 20,
+                    sig: createSignature(Client.API_SEARCH_PATH, 'count=20ctime=' + this.ctime + 'page=1type=songversion=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                }
+            });
+
+            if (response.err !== 0)
+                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
+
+            return response.data.items.map(createMedia);
+        } catch (error: unknown) {
+            if (error instanceof Lapse)
+                throw error;
+
+            throw new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+        }
+    }
+
+    public async searchVideo(query: string): Promise<SearhMedia[]> {
+        if (typeof query !== 'string' || !query.trim().length)
+            throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
+
+        try {
+            void await this.ensureCookies();
+
+            const response: ResponseData<RawSearch<RawSearchMedia>> = await this.instance.get(Client.API_SEARCH_PATH, {
+                params: {
+                    q: query,
+                    type: 'video',
+                    page: 1,
+                    count: 20,
+                    sig: createSignature(Client.API_SEARCH_PATH, 'count=20ctime=' + this.ctime + 'page=1type=videoversion=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                }
+            });
+
+            if (response.err !== 0)
+                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
+
+            return response.data.items.map(createMediaWithoutAlbum);
+        } catch (error: unknown) {
+            if (error instanceof Lapse)
+                throw error;
+
+            throw new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+        }
+    }
+
+    public async searchList(query: string): Promise<SearchPlayList[]> {
+        if (typeof query !== 'string' || !query.trim().length)
+            throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
+
+        try {
+            void await this.ensureCookies();
+
+            const response: ResponseData<RawSearch<RawSearchPlayList>> = await this.instance.get(Client.API_SEARCH_PATH, {
+                params: {
+                    q: query,
+                    type: 'playlist',
+                    page: 1,
+                    count: 20,
+                    sig: createSignature(Client.API_SEARCH_PATH, 'count=20ctime=' + this.ctime + 'page=1type=playlistversion=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                }
+            });
+
+            if (response.err !== 0)
+                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
+
+            return response.data.items.map(createSearchPlayList);
+        } catch (error: unknown) {
+            if (error instanceof Lapse)
+                throw error;
+
+            throw new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+        }
+    }
+
+    public async searchArtist(query: string): Promise<SearchArtist[]> {
+        if (typeof query !== 'string' || !query.trim().length)
+            throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
+
+        try {
+            void await this.ensureCookies();
+
+            const response: ResponseData<RawSearch<RawSearchArtist>> = await this.instance.get(Client.API_SEARCH_PATH, {
+                params: {
+                    q: query,
+                    type: 'artist',
+                    page: 1,
+                    count: 20,
+                    sig: createSignature(Client.API_SEARCH_PATH, 'count=20ctime=' + this.ctime + 'page=1type=artistversion=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                }
+            });
+
+            if (response.err !== 0)
+                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
+
+            return response.data.items.map(createSearchArtist);
+        } catch (error: unknown) {
+            if (error instanceof Lapse)
+                throw error;
+
+            throw new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
         }
     }
 }
 
-const clientOptions: ClientOptions = {
-    maxRate: [
-        100 * 1024,
-        16 * 1024
-    ]
-}
-const client = new ZingClient(clientOptions);
+const client = new Client();
 
 export {
     client as default,
-    ZingClient
+    Client
 }

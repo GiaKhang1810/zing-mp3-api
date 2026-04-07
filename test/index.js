@@ -1,11 +1,16 @@
 import { equal } from 'node:assert';
 import { Readable } from 'node:stream';
 
-import client, { ZingClient } from '@khang07/zing-mp3-api';
+import { Client } from '@khang07/zing-mp3-api';
+
+const client = new Client({
+    maxLoad: 100 * 1024 * 1024,
+    maxHighWaterMark: 100 * 1024 * 1024,
+});
 
 describe('Client.esm', () => {
-    it('should be an instance of ZingClient', () => {
-        equal(client instanceof ZingClient, true);
+    it('should be an instance of Client', () => {
+        equal(client instanceof Client, true);
     });
 
     it('should search for music and return an array', async () => {

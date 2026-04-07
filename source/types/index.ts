@@ -1,12 +1,15 @@
-interface ClientOptions {
-    maxRate?: [Download?: number, HighWaterMark?: number];
-}
+import type { Cookies } from '../utils/cookies.js';
 
-interface RequiredClientOptions {
-    maxRate: [Download: number, HighWaterMark: number];
+type SearchCategory = 'music' | 'video' | 'artist' | 'playlist';
+
+interface ClientOptions {
+    maxLoad?: number;
+    maxHighWaterMark?: number;
+    userAgent?: string;
+    jar?: Cookies;
 }
 
 export type {
     ClientOptions,
-    RequiredClientOptions
+    SearchCategory
 }

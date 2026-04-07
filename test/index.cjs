@@ -1,10 +1,15 @@
 const { equal } = require('node:assert');
 const { Readable } = require('node:stream');
-const { default: client, ZingClient } = require('@khang07/zing-mp3-api');
+const { Client } = require('@khang07/zing-mp3-api');
+
+const client = new Client({
+    maxLoad: 100 * 1024 * 1024,
+    maxHighWaterMark: 100 * 1024 * 1024,
+});
 
 describe('Client.cjs', () => {
-    it('should be an instance of ZingClient', () => {
-        equal(client instanceof ZingClient, true);
+    it('should be an instance of Client', () => {
+        equal(client instanceof Client, true);
     });
 
     it('should search for music and return an array', async () => {
@@ -22,7 +27,7 @@ describe('Client.cjs', () => {
 
     it('should return a readable stream for a music using the sync method', async () => {
         const response = await client.search('Do For Love - Bray');
-        const source = client.musicSyncLike(response[0].id);
+        const source = client.musicSync(response[0].id);
 
         equal(source instanceof Readable, true);
     });
@@ -36,7 +41,7 @@ describe('Client.cjs', () => {
 
     it('should return a readable stream for a video using the sync method', async () => {
         const response = await client.search('Do For Love - Bray');
-        const source = client.videoSyncLike(response[0].id);
+        const source = client.videoSync(response[0].id);
 
         equal(source instanceof Readable, true);
     });
