@@ -1,6 +1,6 @@
 {
 	"name": "@khang07/zing-mp3-api",
-	"version": "1.3.0",
+	"version": "1.3.2",
 	"author": "GiaKhang <ngkhang9a5lqc11@gmail.com>",
 	"repository": {
 		"type": "git",
@@ -48,7 +48,6 @@
 	"scripts": {
 		"build:esm": "tsc -p tsconfig.json",
 		"build:cjs": "rollup -c",
-		"build": "rm -rf dist && bun run build:esm && bun run build:cjs && rm -fr dist/esm/types dist/cjs/types",
 		"test": "mocha"
 	},
 	"devDependencies": {

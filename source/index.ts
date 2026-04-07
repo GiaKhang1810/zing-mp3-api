@@ -2,17 +2,18 @@ import axios from 'axios';
 import m3u8stream from 'm3u8stream';
 
 import { PassThrough } from 'node:stream';
+import { URL } from 'node:url';
 
 import { Cookies } from './utils/cookies.js';
 import { createSignature } from './utils/encrypt.js';
 import { Lapse } from './utils/lapse.js';
-import { createArtist, createMedia, createMediaWithoutAlbum, createPlayList, createSearchArtist, createSearchPlayList } from './utils/refined.js';
+import { createArtist, createMedia, createSearchMedia, createPlayList, createSearchArtist, createSearchPlayList } from './utils/refined.js';
 
 import type { AxiosInstance } from 'axios';
-import { Readable } from 'node:stream';
-import type { ClientOptions, SearchCategory } from './types/index.js';
+import type { Readable } from 'node:stream';
+import type { ClientOptions } from './types/index.js';
 import type { RawArtist, RawMedia, RawMusic, RawPlayList, RawSearch, RawSearchArtist, RawSearchMedia, RawSearchPlayList, RawVideo, ResponseData } from './types/raw.js';
-import type { Artist, Media, SearhMedia, PlayList, SearchPlayList, ArtistRef, SearchArtist } from './types/response.js';
+import type { Artist, Media, SearchMedia, PlayList, SearchPlayList, ArtistRef, SearchArtist } from './types/response.js';
 
 export type {
     Cookies,
@@ -20,8 +21,9 @@ export type {
     PlayList,
     Artist,
     Media,
-    SearhMedia,
-    SearchPlayList
+    SearchMedia,
+    SearchPlayList,
+    SearchArtist
 }
 
 const isURL = (value: string): boolean => {
@@ -73,8 +75,8 @@ class Client {
     private readonly jar: Required<ClientOptions>['jar'];
 
     public constructor(options: ClientOptions = {}) {
-        this.maxLoad = options.maxLoad ?? 16 * 1024;
-        this.maxHighWaterMark = options.maxHighWaterMark ?? this.maxLoad;
+        this.maxLoad = options.maxLoad ?? 1024 * 1024;
+        this.maxHighWaterMark = options.maxHighWaterMark ?? 16 * 1024;
         this.userAgent = options?.userAgent ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3';
         this.jar = options.jar instanceof Cookies ? options.jar : new Cookies();
 
@@ -169,9 +171,38 @@ class Client {
     public videoSync(videoID: string | URL): Readable {
         const video = new PassThrough({ highWaterMark: this.maxHighWaterMark });
 
+        let copySource: Readable | undefined;
+        let closed = false;
+        let sourceDestroyed = false;
+
+        const destroy = (): void => {
+            if (!copySource || sourceDestroyed)
+                return;
+
+            sourceDestroyed = true;
+
+            if (!copySource)
+                return;
+
+            copySource.unpipe(video);
+
+            if (!copySource.destroyed)
+                copySource.destroy();
+        }
+
+        const closer = (): void => {
+            closed = true;
+            destroy();
+        }
+
+        video.once('close', closer);
+        video.once('error', closer);
+
         void this.video(videoID)
             .then(
                 (source: Readable): void => {
+                    copySource = source;
+
                     source.once('error',
                         (error: unknown): void => {
                             const lapse = error instanceof Lapse ? error : new Lapse('Stream download failed', 'ERROR_STREAM_DOWNLOAD', void 0, error);
@@ -179,23 +210,19 @@ class Client {
                         }
                     );
 
-                    const destroy = (): void => {
-                        if (!source.destroyed)
-                            source.destroy();
+                    if (closed || video.destroyed) {
+                        destroy();
+                        return;
                     }
-
-                    video.once('close', destroy);
-                    video.once('error', destroy);
 
                     source.pipe(video);
                 }
             )
             .catch(
                 (error: unknown): void => {
-                    if (error instanceof Lapse)
-                        throw error;
+                    const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch video stream', 'ERROR_VIDEO_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
 
-                    throw new Lapse('Failed to fetch video stream', 'ERROR_VIDEO_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+                    video.destroy(lapse);
                 }
             );
 
@@ -270,9 +297,34 @@ class Client {
     public musicSync(musicID: string | URL): Readable {
         const music = new PassThrough({ highWaterMark: this.maxHighWaterMark });
 
+        let copySource: Readable | undefined;
+        let closed = false;
+        let sourceDestroyed = false;
+
+        const destroy = (): void => {
+            if (!copySource || sourceDestroyed)
+                return;
+
+            sourceDestroyed = true;
+            copySource.unpipe(music);
+
+            if (!copySource.destroyed)
+                copySource.destroy();
+        }
+
+        const closer = (): void => {
+            closed = true;
+            destroy();
+        }
+
+        music.once('close', closer);
+        music.once('error', closer);
+
         void this.music(musicID)
             .then(
                 (source: Readable): void => {
+                    copySource = source;
+
                     source.once('error',
                         (error: unknown): void => {
                             const lapse = error instanceof Lapse ? error : new Lapse('Stream download failed', 'ERROR_STREAM_DOWNLOAD', void 0, error);
@@ -280,23 +332,19 @@ class Client {
                         }
                     );
 
-                    const destroy = (): void => {
-                        if (!source.destroyed)
-                            source.destroy();
+                    if (closed || music.destroyed) {
+                        destroy();
+                        return;
                     }
-
-                    music.once('close', destroy);
-                    music.once('error', destroy);
 
                     source.pipe(music);
                 }
             )
             .catch(
                 (error: unknown): void => {
-                    if (error instanceof Lapse)
-                        throw error;
+                    const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch music stream', 'ERROR_MUSIC_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
 
-                    throw new Lapse('Failed to fetch music stream', 'ERROR_MUSIC_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+                    music.destroy(lapse);
                 }
             );
 
@@ -428,7 +476,7 @@ class Client {
         }
     }
 
-    public async searchVideo(query: string): Promise<SearhMedia[]> {
+    public async searchVideo(query: string): Promise<SearchMedia[]> {
         if (typeof query !== 'string' || !query.trim().length)
             throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
 
@@ -448,7 +496,7 @@ class Client {
             if (response.err !== 0)
                 throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
 
-            return response.data.items.map(createMediaWithoutAlbum);
+            return response.data.items.filter(item => item.artists).map(createSearchMedia);
         } catch (error: unknown) {
             if (error instanceof Lapse)
                 throw error;

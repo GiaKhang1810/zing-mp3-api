@@ -15,7 +15,7 @@ import type {
     Album,
     Media,
     PlayList,
-    SearhMedia,
+    SearchMedia,
     SearchPlayList,
     SearchArtist
 } from '../types/response.js';
@@ -97,7 +97,7 @@ function createMedia(data: RawMedia): Media {
     }
 }
 
-function createMediaWithoutAlbum(data: RawSearchMedia): SearhMedia {
+function createSearchMedia(data: RawSearchMedia): SearchMedia {
     return {
         id: data.encodeId,
         name: data.title,
@@ -111,8 +111,6 @@ function createMediaWithoutAlbum(data: RawSearchMedia): SearhMedia {
             w240: data.thumbnailM
         },
         duration: data.duration,
-        isPrivate: data.isPrivate,
-        releaseDate: data.releaseDate,
         hasLyric: !!data.hasLyric
     }
 }
@@ -164,7 +162,7 @@ export {
     createArtist,
     createMedia,
     createPlayList,
-    createMediaWithoutAlbum,
+    createSearchMedia,
     createSearchPlayList,
     createSearchArtist
 }
