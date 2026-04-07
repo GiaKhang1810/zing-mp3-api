@@ -447,7 +447,7 @@ class Client {
         }
     }
 
-    public async searchMusic(query: string): Promise<Media[]> {
+    public async searchMusic(query: string): Promise<SearchMedia[]> {
         if (typeof query !== 'string' || !query.trim().length)
             throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
 
@@ -467,7 +467,7 @@ class Client {
             if (response.err !== 0)
                 throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
 
-            return response.data.items.map(createMedia);
+            return response.data.items.map(createSearchMedia);
         } catch (error: unknown) {
             if (error instanceof Lapse)
                 throw error;
@@ -565,6 +565,7 @@ class Client {
 }
 
 const client = new Client();
+client.searchMusic('skyfall')
 
 export {
     client as default,

@@ -197,7 +197,7 @@ It throws `ERROR_INVALID_URL` when the input is not a non-empty string or when n
 | `playlist(playlistID)`  | `Promise<PlayList>`                                                                                               | Fetches playlist details. Accepts a raw token, URL string, or `URL`.            |
 | `artist(aliasID)`       | `Promise<Artist>`                                                                                                 | Fetches artist details. Accepts an alias token, URL string, or `URL`.           |
 | `mediaDetails(mediaID)` | `Promise<Media>`                                                                                                  | Fetches song details. Accepts a raw token, URL string, or `URL`.                |
-| `searchMusic(query)`    | `Promise<Media[]>`                                                                                                | Searches songs.                                                                 |
+| `searchMusic(query)`    | `Promise<SearhMedia[]>`                                                                                                | Searches songs.                                                                 |
 | `searchVideo(query)`    | `Promise<SearhMedia[]>`                                                                                           | Searches videos.                                                                |
 | `searchList(query)`     | `Promise<SearchPlayList[]>`                                                                                       | Searches playlists.                                                             |
 | `searchArtist(query)`   | `Promise<SearchArtist[]>` | Searches artists.                                                               |
@@ -281,7 +281,7 @@ interface Media {
 ### `SearhMedia`
 
 ```ts
-type SearhMedia = Omit<Media, "album">;
+type SearchMedia = Omit<Media, 'album' | 'isPrivate' | 'releaseDate'>;
 ```
 
 ### `PlayList`

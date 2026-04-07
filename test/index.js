@@ -331,7 +331,7 @@ describeIfLive('Live integration', function () {
     this.timeout(30000);
 
     it('searchMusic() returns Media items', async function () {
-        const items = await client.searchMusic('Do For Love');
+        const items = await client.searchMusic('Skyfall');
 
         assert.ok(Array.isArray(items));
         assert.ok(items.length > 0);
