@@ -72,7 +72,10 @@ interface RawMedia extends RawThumbnail {
     isWorldWide: boolean;
 }
 
-type RawSearchMedia = Omit<RawMedia, 'album'>;
+interface RawSearchMedia extends Omit<RawMedia, 'artists' | 'album'> {
+    artists?: RawArtistItem[];
+    album?: RawAlbum;
+}
 
 interface RawPlayListSong {
     items: RawMedia[];

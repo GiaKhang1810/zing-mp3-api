@@ -104,12 +104,22 @@ function createSearchMedia(data: RawSearchMedia): SearchMedia {
         alias: data.alias,
         isOffical: data.isOffical,
         username: data.username,
-        artists: data.artists.map(createArtistRef),
+        artists: data.artists ? data.artists.map(createArtistRef) : [],
         isWorldWide: data.isWorldWide,
         thumbnail: {
             w94: data.thumbnail,
             w240: data.thumbnailM
         },
+        album: data.album ? {
+            id: data.album.encodeId,
+            name: data.album.title,
+            isOffical: data.album.isoffical,
+            releaseDate: data.album.releaseDate,
+            releasedAt: data.album.releasedAt,
+            thumbnail: {
+                w165: data.album.thumbnail
+            }
+        } : void 0,
         duration: data.duration,
         hasLyric: !!data.hasLyric
     }

@@ -10,7 +10,7 @@ import { Lapse } from './utils/lapse.js';
 import { createArtist, createMedia, createSearchMedia, createPlayList, createSearchArtist, createSearchPlayList } from './utils/refined.js';
 
 import type { AxiosInstance } from 'axios';
-import type { Readable } from 'node:stream';
+import { Readable } from 'node:stream';
 import type { ClientOptions } from './types/index.js';
 import type { RawArtist, RawMedia, RawMusic, RawPlayList, RawSearch, RawSearchArtist, RawSearchMedia, RawSearchPlayList, RawVideo, ResponseData } from './types/raw.js';
 import type { Artist, Media, SearchMedia, PlayList, SearchPlayList, ArtistRef, SearchArtist } from './types/response.js';
@@ -150,7 +150,9 @@ class Client {
             if (!videoURL || !videoURL.length)
                 throw new Lapse('Streaming URL not found', 'ERROR_STREAM_URL_NOT_FOUND');
 
-            const source: Readable = m3u8stream(videoURL);
+            const source: Readable = m3u8stream(videoURL, {
+                highWaterMark: this.maxHighWaterMark
+            });
 
             source.once('error',
                 (error: unknown): void => {
@@ -496,7 +498,7 @@ class Client {
             if (response.err !== 0)
                 throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
 
-            return response.data.items.filter(item => item.artists).map(createSearchMedia);
+            return response.data.items.map(createSearchMedia);
         } catch (error: unknown) {
             if (error instanceof Lapse)
                 throw error;
@@ -565,7 +567,6 @@ class Client {
 }
 
 const client = new Client();
-client.searchMusic('skyfall')
 
 export {
     client as default,

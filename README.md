@@ -209,128 +209,14 @@ It throws `ERROR_INVALID_URL` when the input is not a non-empty string or when n
 * When the music API returns `err === -1150`, `music()` retries the extra music endpoint up to 4 times and throws `ERROR_MUSIC_VIP_ONLY` if it still cannot resolve a playable URL.
 * `searchMusic()`, `searchVideo()`, `searchList()`, and `searchArtist()` always request `page: 1` and `count: 20`.
 
-## Public Types
-
-### `Artist`
-
-```ts
-interface Artist {
-    alias: string;
-    birthday: string;
-    biography: string;
-    followCount: number;
-    name: string;
-    national: string;
-    realname: string;
-    thumbnail: {
-        w240: string;
-        w600: string;
-    };
-}
-```
-
-### `Media`
-
-```ts
-interface Media {
-    id: string;
-    name: string;
-    alias: string;
-    isOffical: boolean;
-    username: string;
-    artists: Array<{
-        alias: string;
-        followCount?: number;
-        name: string;
-        thumbnail: {
-            w240: string;
-            w600: string;
-        };
-    }>;
-    isWorldWide: boolean;
-    thumbnail: {
-        w94: string;
-        w240: string;
-    };
-    duration: number;
-    isPrivate: boolean;
-    releaseDate: number;
-    album: {
-        id: string;
-        name: string;
-        isOffical: boolean;
-        releaseDate: string;
-        releasedAt: number;
-        artists: Array<{
-            alias: string;
-            followCount?: number;
-            name: string;
-            thumbnail: {
-                w240: string;
-                w600: string;
-            };
-        }>;
-        thumbnail: {
-            w165: string;
-        };
-    };
-    hasLyric: boolean;
-}
-```
-
-### `SearhMedia`
-
-```ts
-type SearchMedia = Omit<Media, 'album' | 'isPrivate' | 'releaseDate'>;
-```
-
-### `PlayList`
-
-```ts
-interface PlayList {
-    id: string;
-    name: string;
-    alias: string;
-    artists: Array<{
-        alias: string;
-        followCount?: number;
-        name: string;
-        thumbnail: {
-            w240: string;
-            w600: string;
-        };
-    }>;
-    description: string;
-    duration: number;
-    isOffical: boolean;
-    isPrivate: boolean;
-    isSingle: boolean;
-    likeCount: number;
-    listenCount: number;
-    media: Media[];
-    mediaCount: number;
-    releaseDate: string;
-    releasedAt: number;
-    thumbnail: {
-        w165: string;
-        w320: string;
-    };
-    updatedAt: number;
-}
-```
-
-### `SearchPlayList`
-
-```ts
-type SearchPlayList = Omit<
-    PlayList,
-    "updatedAt" | "mediaCount" | "listenCount" | "likeCount" | "duration" | "description" | "media"
->;
-```
-
-## `Cookies`
-
-Import from `@khang07/zing-mp3-api/utils/cookies`.
+## Public Types:
+- ### `Artist`
+- ### `PlayList`
+- ### `Media`
+- ### `SearchMedia`
+- ### `SearchPlayList`
+- ### `SearchArtist`
+- ### `Cookies`
 
 ### Methods
 

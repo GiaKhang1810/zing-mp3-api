@@ -57,7 +57,11 @@ interface Media extends Named {
     username: string;
 }
 
-type SearchMedia = Omit<Media, 'album' | 'isPrivate' | 'releaseDate'>;
+type SearchMediaAlbum = Omit<Album, 'artists'>;
+
+type SearchMedia = Omit<Media, 'isPrivate' | 'releaseDate' | 'album'> & {
+    album?: SearchMediaAlbum;
+}
 
 interface PlayList extends Named {
     alias: string;
@@ -90,5 +94,6 @@ export type {
     SearchMedia,
     PlayList,
     SearchPlayList,
-    SearchArtist
+    SearchArtist,
+    SearchMediaAlbum
 }

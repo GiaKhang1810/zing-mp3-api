@@ -331,7 +331,7 @@ describeIfLive('Live integration', function () {
     this.timeout(30000);
 
     it('searchMusic() returns Media items', async function () {
-        const items = await client.searchMusic('Do For Love');
+        const items = await client.searchMusic('sign');
 
         assert.ok(Array.isArray(items));
         assert.ok(items.length > 0);
@@ -340,16 +340,16 @@ describeIfLive('Live integration', function () {
     });
 
     it('searchVideo() returns SearhMedia items', async function () {
-        const items = await client.searchVideo('Do For Love');
+        const items = await client.searchVideo('sign');
 
         assert.ok(Array.isArray(items));
         assert.ok(items.length > 0);
         assert.equal(typeof items[0].id, 'string');
-        assert.equal(Object.hasOwn(items[0], 'album'), false);
+        assert.equal(typeof items[0].album === 'undefined' || typeof items[0].album === 'object', true);
     });
 
     it('searchList() returns SearchPlayList items', async function () {
-        const items = await client.searchList('Do For Love');
+        const items = await client.searchList('sign');
 
         assert.ok(Array.isArray(items));
         assert.ok(items.length > 0);
