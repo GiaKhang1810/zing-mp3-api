@@ -25,7 +25,6 @@ interface ArtistRef {
     thumbnail: CoverArtist;
 }
 
-type SearchArtist = Required<ArtistRef>;
 
 interface Artist extends ArtistRef {
     biography: string;
@@ -57,12 +56,6 @@ interface Media extends Named {
     username: string;
 }
 
-type SearchMediaAlbum = Omit<Album, 'artists'>;
-
-type SearchMedia = Omit<Media, 'isPrivate' | 'releaseDate' | 'album'> & {
-    album?: SearchMediaAlbum;
-}
-
 interface PlayList extends Named {
     alias: string;
     artists: ArtistRef[];
@@ -81,7 +74,12 @@ interface PlayList extends Named {
     updatedAt: number;
 }
 
+type SearchArtist = Required<ArtistRef>;
+type SearchMediaAlbum = Omit<Album, 'artists'>;
 type SearchPlayList = Omit<PlayList, 'updatedAt' | 'mediaCount' | 'listenCount' | 'likeCount' | 'duration' | 'description' | 'media'>;
+type SearchMedia = Omit<Media, 'isPrivate' | 'releaseDate' | 'album'> & {
+    album?: SearchMediaAlbum;
+}
 
 export type {
     Album,

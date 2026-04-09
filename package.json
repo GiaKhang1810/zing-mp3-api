@@ -1,6 +1,6 @@
 {
 	"name": "@khang07/zing-mp3-api",
-	"version": "1.3.6",
+	"version": "1.3.7",
 	"author": "GiaKhang <ngkhang9a5lqc11@gmail.com>",
 	"repository": {
 		"type": "git",
@@ -35,7 +35,7 @@
 	"bugs": {
 		"url": "https://github.com/GiaKhang1810/zing-mp3-api/issues"
 	},
-	"description": "The basic APIs provide the features of ZingMp3.",
+	"description": "The basic APIs provide the features of ZingMp3",
 	"homepage": "https://github.com/GiaKhang1810/zing-mp3-api#readme",
 	"keywords": [
 		"zingmp3",
@@ -48,6 +48,7 @@
 	"scripts": {
 		"build:esm": "tsc -p tsconfig.json",
 		"build:cjs": "rollup -c",
+		"build": "bun run build:esm && bun run build:cjs && rm -rf dist/esm/types dist/cjs/types",
 		"test": "mocha"
 	},
 	"devDependencies": {

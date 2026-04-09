@@ -1,7 +1,7 @@
 type RawThumbnail = {
     thumbnail: string;
     thumbnailM: string;
-};
+}
 
 type RawMusicQuality = '128' | '320';
 type RawVideoQuality = '360p' | '720p';
@@ -17,13 +17,13 @@ interface ResponseData<Data> {
 interface RawMusic extends Partial<Record<RawMusicQuality, string>> {
     streaming?: {
         default?: RawMusicStreaming;
-    };
+    }
 }
 
 interface RawVideo {
     streaming?: {
         hls?: RawVideoStreaming;
-    };
+    }
 }
 
 interface RawArtistBase extends RawThumbnail {
@@ -45,7 +45,7 @@ interface RawArtist extends RawArtistBase {
 
 type RawArtistItem = RawArtistBase & {
     totalFollow?: number;
-};
+}
 
 interface RawAlbum {
     encodeId: string;

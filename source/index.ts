@@ -10,10 +10,10 @@ import { Lapse } from './utils/lapse.js';
 import { createArtist, createMedia, createSearchMedia, createPlayList, createSearchArtist, createSearchPlayList } from './utils/refined.js';
 
 import type { AxiosInstance } from 'axios';
-import { Readable } from 'node:stream';
+import type { Readable } from 'node:stream';
 import type { ClientOptions } from './types/index.js';
 import type { RawArtist, RawMedia, RawMusic, RawPlayList, RawSearch, RawSearchArtist, RawSearchMedia, RawSearchPlayList, RawVideo, ResponseData } from './types/raw.js';
-import type { Artist, Media, SearchMedia, PlayList, SearchPlayList, ArtistRef, SearchArtist } from './types/response.js';
+import type { Artist, Media, SearchMedia, PlayList, SearchPlayList, SearchArtist } from './types/response.js';
 
 export type {
     Cookies,
@@ -34,6 +34,8 @@ const isURL = (value: string): boolean => {
         return false;
     }
 }
+
+const ensureCookies = async (instance: AxiosInstance): Promise<void> => await instance.get('/');
 
 class Client {
     public static readonly BASE_URL: string = 'https://zingmp3.vn/';
@@ -69,16 +71,25 @@ class Client {
 
     private readonly ctime: string = Math.floor(Date.now() / 1000).toString();
     private readonly instance: AxiosInstance;
-    private readonly maxLoad: Required<ClientOptions>['maxLoad'];
-    private readonly maxHighWaterMark: Required<ClientOptions>['maxHighWaterMark'];
-    private readonly userAgent: Required<ClientOptions>['userAgent'];
-    private readonly jar: Required<ClientOptions>['jar'];
 
-    public constructor(options: ClientOptions = {}) {
-        this.maxLoad = options.maxLoad ?? 1024 * 1024;
-        this.maxHighWaterMark = options.maxHighWaterMark ?? 16 * 1024;
-        this.userAgent = options?.userAgent ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3';
-        this.jar = options.jar instanceof Cookies ? options.jar : new Cookies();
+    private maxLoad: number;
+    private maxHighWaterMark: number;
+    private userAgent: string;
+    private jar: Cookies;
+
+    public constructor(options?: ClientOptions) {
+        const mergedOptions: Required<ClientOptions> = {
+            maxLoad: 1024 * 1024,
+            maxHighWaterMark: 16 * 1024,
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
+            jar: new Cookies(),
+            ...options
+        }
+
+        this.maxLoad = mergedOptions.maxLoad;
+        this.maxHighWaterMark = mergedOptions.maxHighWaterMark;
+        this.userAgent = mergedOptions.userAgent;
+        this.jar = mergedOptions.jar;
 
         this.instance = axios.create({
             baseURL: Client.BASE_URL,
@@ -87,16 +98,15 @@ class Client {
                 apiKey: Client.API_KEY_V1,
                 ctime: this.ctime
             },
-            maxRate: this.maxLoad,
-            headers: {
-                'User-Agent': this.userAgent
-            }
+            maxRate: this.maxLoad
         });
 
         this.instance.interceptors.request.use(
             async (options) => {
                 const base = options.baseURL ?? '';
                 const url = new URL(options.url ?? '/', base).toString();
+
+                options.headers.set('User-Agent', this.userAgent);
 
                 const additionalHeaders = this.jar.applyToHeaders(url);
                 for (const [key, value] of Object.entries(additionalHeaders))
@@ -119,9 +129,21 @@ class Client {
         );
     }
 
-    private async ensureCookies(): Promise<void> {
-        if (this.jar.getCookies(Client.BASE_URL).length === 0)
-            void await this.instance.get('/');
+    public setOptions(options?: ClientOptions): void {
+        const mergedOptions: Required<ClientOptions> = {
+            maxLoad: this.maxLoad,
+            maxHighWaterMark: this.maxHighWaterMark,
+            userAgent: this.userAgent,
+            jar: this.jar,
+            ...options
+        }
+
+        this.maxLoad = mergedOptions.maxLoad;
+        this.maxHighWaterMark = mergedOptions.maxHighWaterMark;
+        this.userAgent = mergedOptions.userAgent;
+        this.jar = mergedOptions.jar;
+
+        this.instance.defaults.maxRate = mergedOptions.maxLoad;
     }
 
     public async video(videoID: string | URL): Promise<Readable> {
@@ -133,7 +155,7 @@ class Client {
         try {
             videoID = isURL(value) ? Client.getIDFromURL(value) : value;
 
-            void await this.ensureCookies();
+            void await ensureCookies(this.instance);
 
             const response: ResponseData<RawVideo> = await this.instance.get(Client.API_VIDEO_PATH, {
                 params: {
@@ -143,7 +165,7 @@ class Client {
             });
 
             if (response.err !== 0)
-                throw new Lapse('Video could not be found', 'ERROR_VIDEO_NOT_FOUND', response.err, response);
+                throw new Lapse('Video could not be found', 'ERROR_VIDEO_NOT_FOUND', response.err);
 
             const videoURL: string | void = response.data?.streaming?.hls?.['720p'] || response.data?.streaming?.hls?.['360p'];
 
@@ -163,10 +185,8 @@ class Client {
 
             return source;
         } catch (error: unknown) {
-            if (error instanceof Lapse)
-                throw error;
-
-            throw new Lapse('Failed to fetch video stream', 'ERROR_VIDEO_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch video stream', 'ERROR_VIDEO_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw lapse;
         }
     }
 
@@ -240,7 +260,7 @@ class Client {
         try {
             musicID = isURL(value) ? Client.getIDFromURL(value) : value;
 
-            void await this.ensureCookies();
+            void await ensureCookies(this.instance);
 
             const response: ResponseData<RawMusic> = await this.instance.get(Client.API_MUSIC_PATH, {
                 params: {
@@ -254,7 +274,7 @@ class Client {
             if (response.err === -1150) {
                 const retry = async (step: number, before?: ResponseData<RawMusic>): Promise<string | void> => {
                     if (step > 3)
-                        throw new Lapse('Music requested by VIP, PRI', 'ERROR_MUSIC_VIP_ONLY', before ? before.err : void 0, before);
+                        throw new Lapse('Music requested by VIP, PRI', 'ERROR_MUSIC_VIP_ONLY', before ? before.err : void 0);
 
                     const retryData: ResponseData<RawMusic> = await this.instance.get(Client.EXTRA_API_MUSIC_PATH, {
                         params: {
@@ -289,10 +309,8 @@ class Client {
 
             return source;
         } catch (error: unknown) {
-            if (error instanceof Lapse)
-                throw error;
-
-            throw new Lapse('Failed to fetch music stream', 'ERROR_MUSIC_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch music stream', 'ERROR_MUSIC_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw lapse;
         }
     }
 
@@ -362,7 +380,7 @@ class Client {
         try {
             playlistID = isURL(value) ? Client.getIDFromURL(value) : value;
 
-            void await this.ensureCookies();
+            void await ensureCookies(this.instance);
 
             const response: ResponseData<RawPlayList> = await this.instance.get(Client.API_PLAYLIST_PATH, {
                 params: {
@@ -376,10 +394,8 @@ class Client {
 
             return createPlayList(response.data);
         } catch (error: unknown) {
-            if (error instanceof Lapse)
-                throw error;
-
-            throw new Lapse('Failed to fetch playlist', 'ERROR_PLAYLIST_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch playlist', 'ERROR_PLAYLIST_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw lapse;
         }
     }
 
@@ -392,7 +408,7 @@ class Client {
         try {
             aliasID = isURL(value) ? Client.getIDFromURL(value) : value;
 
-            void await this.ensureCookies();
+            void await ensureCookies(this.instance);
 
             const response: ResponseData<RawArtist> = await this.instance.get(Client.API_ARTIST_PATH, {
                 params: {
@@ -402,17 +418,15 @@ class Client {
             });
 
             if (response.err === -108)
-                throw new Lapse('Artist not found', 'ERROR_ARTIST_NOT_FOUND', response.err, response);
+                throw new Lapse('Artist not found', 'ERROR_ARTIST_NOT_FOUND', response.err);
 
             if (response.err !== 0)
-                throw new Lapse('Could not fetch artist', 'ERROR_ARTIST_FETCH', response.err, response);
+                throw new Lapse('Could not fetch artist', 'ERROR_ARTIST_FETCH', response.err);
 
             return createArtist(response.data);
         } catch (error: unknown) {
-            if (error instanceof Lapse)
-                throw error;
-
-            throw new Lapse('Failed to fetch artist', 'ERROR_ARTIST_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch artist', 'ERROR_ARTIST_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw lapse;
         }
     }
 
@@ -425,7 +439,7 @@ class Client {
         try {
             mediaID = isURL(value) ? Client.getIDFromURL(value) : value;
 
-            void await this.ensureCookies();
+            void await ensureCookies(this.instance);
 
             const response: ResponseData<RawMedia> = await this.instance.get(Client.API_MEDIA_DETAILS_PATH, {
                 params: {
@@ -435,17 +449,15 @@ class Client {
             });
 
             if (response.err === -1023)
-                throw new Lapse('Media not found', 'ERROR_MEDIA_NOT_FOUND', response.err, response);
+                throw new Lapse('Media not found', 'ERROR_MEDIA_NOT_FOUND', response.err);
 
             if (response.err !== 0)
-                throw new Lapse('Could not fetch media', 'ERROR_MEDIA_FETCH', response.err, response);
+                throw new Lapse('Could not fetch media', 'ERROR_MEDIA_FETCH', response.err);
 
             return createMedia(response.data);
         } catch (error: unknown) {
-            if (error instanceof Lapse)
-                throw error;
-
-            throw new Lapse('Failed to fetch media', 'ERROR_MEDIA_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch media', 'ERROR_MEDIA_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw lapse;
         }
     }
 
@@ -454,7 +466,7 @@ class Client {
             throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
 
         try {
-            void await this.ensureCookies();
+            void await ensureCookies(this.instance);
 
             const response: ResponseData<RawSearch<RawMedia>> = await this.instance.get(Client.API_SEARCH_PATH, {
                 params: {
@@ -467,14 +479,12 @@ class Client {
             });
 
             if (response.err !== 0)
-                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
+                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err);
 
-            return response.data.items.map(createSearchMedia);
+            return (response.data.items ?? []).map(createSearchMedia);
         } catch (error: unknown) {
-            if (error instanceof Lapse)
-                throw error;
-
-            throw new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            const lapse = error instanceof Lapse ? error : new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw lapse;
         }
     }
 
@@ -483,7 +493,7 @@ class Client {
             throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
 
         try {
-            void await this.ensureCookies();
+            void await ensureCookies(this.instance);
 
             const response: ResponseData<RawSearch<RawSearchMedia>> = await this.instance.get(Client.API_SEARCH_PATH, {
                 params: {
@@ -496,14 +506,12 @@ class Client {
             });
 
             if (response.err !== 0)
-                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
+                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err);
 
-            return response.data.items.map(createSearchMedia);
+            return (response.data.items ?? []).map(createSearchMedia);
         } catch (error: unknown) {
-            if (error instanceof Lapse)
-                throw error;
-
-            throw new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            const lapse = error instanceof Lapse ? error : new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw lapse;
         }
     }
 
@@ -512,7 +520,7 @@ class Client {
             throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
 
         try {
-            void await this.ensureCookies();
+            void await ensureCookies(this.instance);
 
             const response: ResponseData<RawSearch<RawSearchPlayList>> = await this.instance.get(Client.API_SEARCH_PATH, {
                 params: {
@@ -525,14 +533,12 @@ class Client {
             });
 
             if (response.err !== 0)
-                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
+                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err);
 
             return response.data.items.map(createSearchPlayList);
         } catch (error: unknown) {
-            if (error instanceof Lapse)
-                throw error;
-
-            throw new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            const lapse = error instanceof Lapse ? error : new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw lapse;
         }
     }
 
@@ -541,7 +547,7 @@ class Client {
             throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
 
         try {
-            void await this.ensureCookies();
+            void await ensureCookies(this.instance);
 
             const response: ResponseData<RawSearch<RawSearchArtist>> = await this.instance.get(Client.API_SEARCH_PATH, {
                 params: {
@@ -554,14 +560,12 @@ class Client {
             });
 
             if (response.err !== 0)
-                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err, response);
+                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err);
 
             return response.data.items.map(createSearchArtist);
         } catch (error: unknown) {
-            if (error instanceof Lapse)
-                throw error;
-
-            throw new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            const lapse = error instanceof Lapse ? error : new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw lapse;
         }
     }
 }
