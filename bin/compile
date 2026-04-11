@@ -2,7 +2,6 @@
 set -eu
 
 rm -rf dist
-rm -rf types
 
 bun run --bun build:esm
 bun run --bun build:cjs
