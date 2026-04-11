@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { PassThrough } from 'node:stream';
 
 import client, { Client, Cookies, Lapse, createSignature } from '@khang07/zing-mp3-api';
-
 const describeIfLive = process.env.ZING_MP3_LIVE === '1' ? describe : describe.skip;
 
 function isLapseWithCode(error, code) {

@@ -2,8 +2,9 @@
 set -eu
 
 rm -rf dist
+rm -rf types
 
-bun run build:esm
-bun run build:cjs
+bun run --bun build:esm
+bun run --bun build:cjs
 
 rm -rf dist/esm/types dist/cjs/types

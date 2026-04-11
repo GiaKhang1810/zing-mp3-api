@@ -1,6 +1,6 @@
 {
 	"name": "@khang07/zing-mp3-api",
-	"version": "1.3.9",
+	"version": "1.4.0",
 	"author": "GiaKhang <ngkhang9a5lqc11@gmail.com>",
 	"repository": {
 		"type": "git",
@@ -13,23 +13,8 @@
 	"exports": {
 		".": {
 			"types": "./dist/types/index.d.ts",
-			"import": "./dist/esm/index.js",
-			"require": "./dist/cjs/index.cjs"
-		},
-		"./utils/cookies": {
-			"types": "./dist/types/utils/cookies.d.ts",
-			"import": "./dist/esm/utils/cookies.js",
-			"require": "./dist/cjs/utils/cookies.cjs"
-		},
-		"./utils/encrypt": {
-			"types": "./dist/types/utils/encrypt.d.ts",
-			"import": "./dist/esm/utils/encrypt.js",
-			"require": "./dist/cjs/utils/encrypt.cjs"
-		},
-		"./utils/lapse": {
-			"types": "./dist/types/utils/lapse.d.ts",
-			"import": "./dist/esm/utils/lapse.js",
-			"require": "./dist/cjs/utils/lapse.cjs"
+			"require": "./dist/cjs/index.cjs",
+			"default": "./dist/esm/index.js"
 		}
 	},
 	"bugs": {
@@ -48,7 +33,7 @@
 	"scripts": {
 		"build:esm": "tsc -p tsconfig.json",
 		"build:cjs": "rollup -c",
-		"build": "bun run build:esm && bun run build:cjs && rm -rf dist/esm/types dist/cjs/types",
+		"build": "rm -rf dist && npm run build:esm && npm run build:cjs && rm -rf dist/esm/types dist/cjs/types",
 		"test": "mocha"
 	},
 	"devDependencies": {

@@ -1,8 +1,7 @@
 const assert = require('node:assert/strict');
 const { PassThrough } = require('node:stream');
 
-const client = require('@khang07/zing-mp3-api');
-const { Client, Lapse, Cookies, createSignature } = client;
+const { default: client, Client, Lapse, Cookies, createSignature } = require('@khang07/zing-mp3-api');
 
 const describeIfLive = process.env.ZING_MP3_LIVE === '1' ? describe : describe.skip;
 

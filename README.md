@@ -110,8 +110,7 @@ import client, { Client } from "@khang07/zing-mp3-api";
 ### CommonJS
 
 ```js
-const client = require("@khang07/zing-mp3-api");
-const { Client } = client;
+const { default: client, Client } = require("@khang07/zing-mp3-api");
 ```
 
 ### Search for songs
@@ -184,8 +183,7 @@ stream.pipe(createWriteStream("music.mp3"));
 ### Handle library errors
 
 ```ts
-import client from "@khang07/zing-mp3-api";
-import { Lapse } from "@khang07/zing-mp3-api/utils/lapse";
+import client, { Lapse } from "@khang07/zing-mp3-api";
 
 try {
     await client.playlist("");
@@ -272,14 +270,6 @@ Type exports:
 - `SearchMedia`
 - `SearchPlayList`
 
-### Public utility subpaths
-
-```ts
-import { Cookies } from "@khang07/zing-mp3-api/utils/cookies";
-import { createSignature } from "@khang07/zing-mp3-api/utils/encrypt";
-import { Lapse } from "@khang07/zing-mp3-api/utils/lapse";
-```
-
 ### `Cookies` helper
 
 Methods:
@@ -313,7 +303,7 @@ interface CookieRecord {
 Example:
 
 ```ts
-import { Cookies } from "@khang07/zing-mp3-api/utils/cookies";
+import { Cookies } from "@khang07/zing-mp3-api";
 
 const jar = new Cookies();
 jar.setCookie("sid=abc; Path=/; HttpOnly", "https://zingmp3.vn/");
