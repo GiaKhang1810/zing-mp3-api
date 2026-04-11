@@ -110,10 +110,8 @@ import client, { Client } from "@khang07/zing-mp3-api";
 ### CommonJS
 
 ```js
-const zing = require("@khang07/zing-mp3-api");
-
-const client = zing.default;
-const { Client } = zing;
+const client = require("@khang07/zing-mp3-api");
+const { Client } = client;
 ```
 
 ### Search for songs
