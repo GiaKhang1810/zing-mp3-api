@@ -1,6 +1,6 @@
-# @khang07/zing-mp3-api
+# **@KHANG07/ZING-MP3-API**
 
-A TypeScript library for working with Zing MP3 resources from Node.js.
+A TypeScript library for working with [Zing MP3](https://zingmp3.vn) resources from Node.js.
 It can search songs, videos, playlists, and artists; fetch detailed metadata;
 and return readable streams for music and video playback or download.
 
@@ -37,9 +37,10 @@ Project dependencies:
 
 Development tooling used by the project:
 
-- [TypeScript](https://www.npmjs.com/package/typescript)
-- [Rollup](https://www.npmjs.com/package/rollup)
-- [Mocha](https://www.npmjs.com/package/mocha)
+- [@types/node](https:/t/www.npmjs.com/package/@types/node)
+- [mocha](https://www.npmjs.com/package/mocha)
+- [rollup](https://www.npmjs.com/package/rollup)
+- [typescript](https://www.npmjs.com/package/typescript)
 
 
 ## Installation
@@ -75,8 +76,7 @@ The library works out of the box with the default exported client.
 If you need more control, create a `Client` instance with custom options.
 
 ```ts
-import { Client } from "@khang07/zing-mp3-api";
-import { Cookies } from "@khang07/zing-mp3-api/utils/cookies";
+import { Client, Cookies } from "@khang07/zing-mp3-api";
 
 const client = new Client({
     maxLoad: 1024 * 1024,
@@ -232,7 +232,7 @@ Throws `ERROR_INVALID_URL` when the input is empty or unsupported.
 ### Method notes
 
 - `video()` prefers `720p` and falls back to `360p`
-- `music()` prefers `320` when available and falls back to `128`
+- `music()` prefers `320kbps` when available and falls back to `128kbps`
 - If the main music endpoint returns a VIP-only response, `music()` retries the
   extra music endpoint before throwing `ERROR_MUSIC_VIP_ONLY`
 - Search methods currently request the first page with `count: 20`
@@ -260,6 +260,9 @@ Runtime exports:
 
 - `default`: a ready-to-use `Client` instance
 - `Client`: the client class
+- `Cookies`: the cookies class
+- `createSignature`: signature function
+- `Lapse`: the custom error class
 
 Type exports:
 

@@ -18,10 +18,9 @@ interface Named {
     name: string;
 }
 
-interface ArtistRef {
+interface ArtistRef extends Named {
     alias: string;
     followCount?: number;
-    name: string;
     thumbnail: CoverArtist;
 }
 
@@ -32,6 +31,8 @@ interface Artist extends ArtistRef {
     followCount: number;
     national: string;
     realname: string;
+    mediaCount: number;
+    media: Media[];
 }
 
 interface Album extends Named {
@@ -43,7 +44,7 @@ interface Album extends Named {
 }
 
 interface Media extends Named {
-    album: Album;
+    album?: Album;
     alias: string;
     artists: ArtistRef[];
     duration: number;

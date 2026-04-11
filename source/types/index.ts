@@ -1,15 +1,16 @@
 import type { Cookies } from '../utils/cookies.js';
-
-type SearchCategory = 'music' | 'video' | 'artist' | 'playlist';
-
-interface ClientOptions {
-    maxLoad?: number;
-    maxHighWaterMark?: number;
-    userAgent?: string;
-    jar?: Cookies;
-}
+import type { Lapse } from '../utils/lapse.js';
+import type { ClientOptions } from './client.js';
+import type { Artist, Media, SearchMedia, PlayList, SearchPlayList, SearchArtist } from './response.js';
 
 export type {
+    Cookies,
+    Lapse,
     ClientOptions,
-    SearchCategory
+    Artist,
+    Media,
+    SearchMedia,
+    PlayList,
+    SearchPlayList,
+    SearchArtist
 }

@@ -6,7 +6,8 @@ import type {
     RawPlayList,
     RawSearchMedia,
     RawSearchPlayList,
-    RawSearchArtist
+    RawSearchArtist,
+    RawPlayListSong
 } from '../types/raw.js';
 
 import type {
@@ -20,8 +21,19 @@ import type {
     SearchArtist
 } from '../types/response.js';
 
+export type {
+    Artist,
+    Album,
+    Media,
+    PlayList,
+    SearchMedia,
+    SearchPlayList,
+    SearchArtist
+}
+
 function createArtistRef(data: RawArtistItem): ArtistRef {
     return {
+        id: data.id,
         alias: data.alias,
         name: data.name,
         thumbnail: {
@@ -36,6 +48,7 @@ function createArtistRef(data: RawArtistItem): ArtistRef {
 
 function createSearchArtist(data: RawSearchArtist): SearchArtist {
     return {
+        id: data.id,
         alias: data.alias,
         name: data.name,
         thumbnail: {
@@ -46,8 +59,9 @@ function createSearchArtist(data: RawSearchArtist): SearchArtist {
     }
 }
 
-function createArtist(data: RawArtist): Artist {
+function createArtist(data: RawArtist, mediaList: RawPlayListSong): Artist {
     return {
+        id: data.id,
         alias: data.alias,
         birthday: data.birthday,
         realname: data.realname,
@@ -58,7 +72,9 @@ function createArtist(data: RawArtist): Artist {
         followCount: data.totalFollow,
         name: data.name,
         national: data.national,
-        biography: data.biography
+        biography: data.biography,
+        mediaCount: mediaList.total ?? 0,
+        media: (mediaList.items ?? []).map(createMedia)
     }
 }
 
@@ -69,7 +85,7 @@ function createAlbum(data: RawAlbum): Album {
         isOffical: data.isoffical,
         releaseDate: data.releaseDate,
         releasedAt: data.releasedAt,
-        artists: data.artists.map(createArtistRef),
+        artists: (data.artists ?? []).map(createArtistRef),
         thumbnail: {
             w165: data.thumbnail
         }
@@ -83,7 +99,7 @@ function createMedia(data: RawMedia): Media {
         alias: data.alias,
         isOffical: data.isOffical,
         username: data.username,
-        artists: data.artists.map(createArtistRef),
+        artists: (data.artists ?? []).map(createArtistRef),
         isWorldWide: data.isWorldWide,
         thumbnail: {
             w94: data.thumbnail,
@@ -92,7 +108,7 @@ function createMedia(data: RawMedia): Media {
         duration: data.duration,
         isPrivate: data.isPrivate,
         releaseDate: data.releaseDate,
-        album: createAlbum(data.album),
+        album: data.album ? createAlbum(data.album) : void 0,
         hasLyric: !!data.hasLyric
     }
 }
@@ -104,7 +120,7 @@ function createSearchMedia(data: RawSearchMedia): SearchMedia {
         alias: data.alias,
         isOffical: data.isOffical,
         username: data.username,
-        artists: data.artists ? data.artists.map(createArtistRef) : [],
+        artists: (data.artists ?? []).map(createArtistRef),
         isWorldWide: data.isWorldWide,
         thumbnail: {
             w94: data.thumbnail,
@@ -136,7 +152,7 @@ function createPlayList(data: RawPlayList): PlayList {
         isOffical: data.isoffical,
         releaseDate: data.releaseDate,
         releasedAt: data.releasedAt,
-        artists: data.artists.map(createArtistRef),
+        artists: (data.artists ?? []).map(createArtistRef),
         isPrivate: data.isPrivate,
         isSingle: data.isSingle,
         description: data.description,
@@ -161,7 +177,7 @@ function createSearchPlayList(data: RawSearchPlayList): SearchPlayList {
         isOffical: data.isoffical,
         releaseDate: data.releaseDate,
         releasedAt: data.releasedAt,
-        artists: data.artists.map(createArtistRef),
+        artists: (data.artists ?? []).map(createArtistRef),
         isPrivate: data.isPrivate,
         isSingle: data.isSingle,
         alias: data.aliasTitle

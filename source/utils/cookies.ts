@@ -163,7 +163,7 @@ export class Cookies {
             httpOnly,
             sameSite,
             hostOnly
-        };
+        }
 
         if (isExpired(cookie, Date.now())) {
             this.deleteCookie(cookie.domain, cookie.path, cookie.name);

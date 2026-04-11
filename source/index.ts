@@ -11,20 +11,11 @@ import { createArtist, createMedia, createSearchMedia, createPlayList, createSea
 
 import type { AxiosInstance } from 'axios';
 import type { Readable } from 'node:stream';
-import type { ClientOptions } from './types/index.js';
-import type { RawArtist, RawMedia, RawMusic, RawPlayList, RawSearch, RawSearchArtist, RawSearchMedia, RawSearchPlayList, RawVideo, ResponseData } from './types/raw.js';
-import type { Artist, Media, SearchMedia, PlayList, SearchPlayList, SearchArtist } from './types/response.js';
+import type { ClientOptions } from './types/client.js';
+import type { RawArtist, RawMedia, RawMusic, RawPlayList, RawPlayListSong, RawSearch, RawSearchArtist, RawSearchMedia, RawSearchPlayList, RawVideo, ResponseData } from './types/raw.js';
+import type { Artist, Media, SearchMedia, PlayList, SearchPlayList, SearchArtist } from './utils/refined.js';
 
-export type {
-    Cookies,
-    ClientOptions,
-    PlayList,
-    Artist,
-    Media,
-    SearchMedia,
-    SearchPlayList,
-    SearchArtist
-}
+export type * from './types/index.js';
 
 const isURL = (value: string): boolean => {
     try {
@@ -41,13 +32,16 @@ class Client {
     public static readonly BASE_URL: string = 'https://zingmp3.vn/';
 
     public static readonly VERSION_URL_V1: string = '1.6.34';
-    public static readonly VERSION_URL_V2: string = '1.13.13';
+    public static readonly VERSION_URL_V2: string = '1.10.49';
+    public static readonly VERSION_URL_V3: string = '1.13.13';
 
     public static readonly SECRET_KEY_V1: string = '2aa2d1c561e809b267f3638c4a307aab';
-    public static readonly SECRET_KEY_V2: string = '10a01dcf33762d3a204cb96429918ff6';
+    public static readonly SECRET_KEY_V2: string = 'acOrvUS15XRW2o9JksiK1KgQ6Vbds8ZW';
+    public static readonly SECRET_KEY_V3: string = '10a01dcf33762d3a204cb96429918ff6';
 
     public static readonly API_KEY_V1: string = '88265e23d4284f25963e6eedac8fbfa3';
-    public static readonly API_KEY_V2: string = '38e8643fb0dc04e8d65b99994d3dafff';
+    public static readonly API_KEY_V2: string = 'X5BM3w8N7MKozC0B85o4KMlzLZKhV00y';
+    public static readonly API_KEY_V3: string = '38e8643fb0dc04e8d65b99994d3dafff';
 
     public static readonly API_VIDEO_PATH: string = '/api/v2/page/get/video';
     public static readonly API_MUSIC_PATH: string = '/api/v2/song/get/streaming';
@@ -56,6 +50,7 @@ class Client {
     public static readonly API_PLAYLIST_PATH: string = '/api/v2/page/get/playlist';
     public static readonly API_MEDIA_DETAILS_PATH: string = '/api/v2/song/get/info';
     public static readonly API_ARTIST_PATH: string = '/api/v2/page/get/artist';
+    public static readonly API_ARTIST_MEDIA_LIST_PATH: string = '/api/v2/song/get/list';
 
     public static getIDFromURL(url: string): string {
         if (typeof url !== 'string' || !url.trim().length)
@@ -102,15 +97,13 @@ class Client {
         });
 
         this.instance.interceptors.request.use(
-            async (options) => {
-                const base = options.baseURL ?? '';
-                const url = new URL(options.url ?? '/', base).toString();
+            (options) => {
+                const baseURL = options.baseURL ?? '';
+                const url = new URL(options.url ?? '/', baseURL).toString();
+                const cookie = this.jar.getCookieHeader(url);
 
                 options.headers.set('User-Agent', this.userAgent);
-
-                const additionalHeaders = this.jar.applyToHeaders(url);
-                for (const [key, value] of Object.entries(additionalHeaders))
-                    options.headers.set(key, value);
+                options.headers.set('Cookie', cookie);
 
                 return options;
             }
@@ -119,10 +112,11 @@ class Client {
         this.instance.interceptors.response.use(
             (response) => {
                 const setCookie = response.headers['set-cookie'];
-                const requestUrl = response.request?.res?.responseUrl ?? response.config.url;
+                const requestURL = response.request?.res?.responseUrl ?? response.config.url;
 
-                if (requestUrl && Array.isArray(setCookie))
-                    this.jar.setCookies(setCookie, requestUrl);
+                if (
+                    requestURL && Array.isArray(setCookie)
+                ) this.jar.setCookies(setCookie, requestURL);
 
                 return response.data;
             }
@@ -269,7 +263,7 @@ class Client {
                 }
             });
 
-            let musicURL: string | void = response.data?.[320] && response.data[320] !== 'VIP' ? response.data[320] : response.data?.[128];
+            let musicURL: string | void = response.data[320] !== 'VIP' ? response.data[320] : response.data[128];
 
             if (response.err === -1150) {
                 const retry = async (step: number, before?: ResponseData<RawMusic>): Promise<string | void> => {
@@ -279,8 +273,8 @@ class Client {
                     const retryData: ResponseData<RawMusic> = await this.instance.get(Client.EXTRA_API_MUSIC_PATH, {
                         params: {
                             id: musicID,
-                            api_key: Client.API_KEY_V2,
-                            sig: createSignature('/song/get-song-info', 'ctime=' + this.ctime + 'id=' + musicID, Client.SECRET_KEY_V2),
+                            api_key: Client.API_KEY_V3,
+                            sig: createSignature('/song/get-song-info', 'ctime=' + this.ctime + 'id=' + musicID, Client.SECRET_KEY_V3),
                             version: void 0,
                             apiKey: void 0
                         }
@@ -423,7 +417,21 @@ class Client {
             if (response.err !== 0)
                 throw new Lapse('Could not fetch artist', 'ERROR_ARTIST_FETCH', response.err);
 
-            return createArtist(response.data);
+            const mediaList: ResponseData<RawPlayListSong> = await this.instance.get(Client.API_ARTIST_MEDIA_LIST_PATH, {
+                params: {
+                    id: response.data.id,
+                    type: 'artist',
+                    page: 1,
+                    count: 0,
+                    sort: 'listen',
+                    sectionId: 'aSong',
+                    apiKey: Client.API_KEY_V2,
+                    version: Client.VERSION_URL_V2,
+                    sig: createSignature(Client.API_ARTIST_MEDIA_LIST_PATH, 'count=0ctime=' + this.ctime + 'id=' + response.data.id + 'page=1type=artistversion=' + Client.VERSION_URL_V2, Client.SECRET_KEY_V2)
+                }
+            });
+
+            return createArtist(response.data, mediaList.data);
         } catch (error: unknown) {
             const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch artist', 'ERROR_ARTIST_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
             throw lapse;
@@ -574,5 +582,10 @@ const client = new Client();
 
 export {
     client as default,
-    Client
+
+    Cookies,
+    Client,
+    Lapse,
+
+    createSignature
 }

@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import { PassThrough } from 'node:stream';
 
-import client, { Client } from '@khang07/zing-mp3-api';
-import { Cookies } from '@khang07/zing-mp3-api/utils/cookies';
-import { createSignature } from '@khang07/zing-mp3-api/utils/encrypt';
-import { Lapse } from '@khang07/zing-mp3-api/utils/lapse';
+import client, { Client, Cookies, Lapse, createSignature } from '@khang07/zing-mp3-api';
 
 const describeIfLive = process.env.ZING_MP3_LIVE === '1' ? describe : describe.skip;
 
@@ -110,7 +107,7 @@ describe('videoSync()', function () {
 
         instance.video = async function () {
             throw lapse;
-        };
+        }
 
         const stream = instance.videoSync('ZWZB9WAB');
         const error = await waitForStreamError(stream, 'videoSync() should not emit data');
@@ -163,7 +160,7 @@ describe('videoSync()', function () {
 
         instance.video = async function () {
             return source;
-        };
+        }
 
         const stream = instance.videoSync('ZWZB9WAB');
 
@@ -183,7 +180,7 @@ describe('musicSync()', function () {
 
         instance.music = async function () {
             throw lapse;
-        };
+        }
 
         const stream = instance.musicSync('ZWZB9WAB');
         const error = await waitForStreamError(stream, 'musicSync() should not emit data');
@@ -214,7 +211,7 @@ describe('musicSync()', function () {
 
         instance.music = async function () {
             return source;
-        };
+        }
 
         const stream = instance.musicSync('ZWZB9WAB');
 

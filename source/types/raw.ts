@@ -27,6 +27,7 @@ interface RawVideo {
 }
 
 interface RawArtistBase extends RawThumbnail {
+    id: string;
     alias: string;
     name: string;
 }
@@ -65,7 +66,7 @@ interface RawMedia extends RawThumbnail {
     artists: RawArtistItem[];
     duration: number;
     releaseDate: number;
-    album: RawAlbum;
+    album?: RawAlbum;
     hasLyric?: boolean;
     isOffical: boolean;
     isPrivate: boolean;
