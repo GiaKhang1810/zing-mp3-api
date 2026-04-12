@@ -26,7 +26,7 @@ const isURL = (value: string): boolean => {
     }
 }
 
-const ensureCookies = async (instance: AxiosInstance): Promise<void> => await instance.get('/');
+const ensureCookies = (instance: AxiosInstance): Promise<void> => instance.get('/');
 
 class Client {
     public static readonly BASE_URL: string = 'https://zingmp3.vn/';
@@ -121,6 +121,10 @@ class Client {
                 return response.data;
             }
         );
+    }
+
+    public getJar(): Cookies {
+        return this.jar;
     }
 
     public setOptions(options?: ClientOptions): void {
@@ -263,7 +267,7 @@ class Client {
                 }
             });
 
-            let musicURL: string | void = response.data[320] !== 'VIP' ? response.data[320] : response.data[128];
+            let musicURL: string | void = response.data?.[320] && response.data[320] !== 'VIP' ? response.data[320] : response.data?.[128];
 
             if (response.err === -1150) {
                 const retry = async (step: number, before?: ResponseData<RawMusic>): Promise<string | void> => {
@@ -289,7 +293,7 @@ class Client {
                 musicURL = await retry(0);
             }
 
-            if (!musicURL || !musicURL.length)
+            if (!musicURL || !musicURL.trim().length)
                 throw new Lapse('Streaming URL not found', 'ERROR_STREAM_URL_NOT_FOUND');
 
             const source: Readable = await this.instance.get(musicURL, { responseType: 'stream' });

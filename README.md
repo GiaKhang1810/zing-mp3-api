@@ -88,6 +88,23 @@ const client = new Client({
 });
 ```
 
+Or
+
+```ts
+import client from "@khang07/zing-mp3-api"
+
+const jar = client.getJar();
+
+client.setOptions({
+    maxLoad: 1024 * 1024,
+    maxHighWaterMark: 16 * 1024,
+    userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+    jar: jar
+})
+```
+
 `ClientOptions` fields:
 
 - `maxLoad`: request rate limit passed to Axios as `maxRate`
@@ -213,6 +230,8 @@ Throws `ERROR_INVALID_URL` when the input is empty or unsupported.
 
 | Method | Returns | Description |
 | --- | --- | --- |
+| `getJar()` | `Cookies` | Get Cookies instance. |
+| `setOptions(options?)` | `void` | set options. |
 | `video(videoID)` | `Promise<Readable>` | Fetch a video stream from a raw ID, URL string, or `URL` object. |
 | `videoSync(videoID)` | `Readable` | Return a `PassThrough` immediately and pipe the resolved video stream into it. |
 | `music(musicID)` | `Promise<Readable>` | Fetch a music stream from a raw ID, URL string, or `URL` object. |
