@@ -2,18 +2,18 @@ import axios from 'axios';
 import m3u8stream from 'm3u8stream';
 
 import { PassThrough } from 'node:stream';
-import { URL } from 'node:url';
 
 import { Cookies } from './utils/cookies.js';
 import { createSignature } from './utils/encrypt.js';
 import { Lapse } from './utils/lapse.js';
-import { createArtist, createMedia, createSearchMedia, createPlayList, createSearchArtist, createSearchPlayList } from './utils/refined.js';
+import { createArtist, createMedia, createSearchMedia, createPlayList, createSearchArtist, createSearchPlayList, createMediaChart } from './utils/refined.js';
 
 import type { AxiosInstance } from 'axios';
 import type { Readable } from 'node:stream';
 import type { ClientOptions } from './types/client.js';
-import type { RawArtist, RawMedia, RawMusic, RawPlayList, RawPlayListSong, RawSearch, RawSearchArtist, RawSearchMedia, RawSearchPlayList, RawVideo, ResponseData } from './types/raw.js';
+import type { RawArtist, RawMedia, RawMediaChart, RawMusic, RawPlayList, RawPlayListSong, RawSearch, RawSearchArtist, RawSearchMedia, RawSearchPlayList, RawVideo, ResponseData } from './types/raw.js';
 import type { Artist, Media, SearchMedia, PlayList, SearchPlayList, SearchArtist } from './utils/refined.js';
+import type { MediaChart } from './types/response.js';
 
 export type * from './types/index.js';
 
@@ -51,6 +51,7 @@ class Client {
     public static readonly API_MEDIA_DETAILS_PATH: string = '/api/v2/song/get/info';
     public static readonly API_ARTIST_PATH: string = '/api/v2/page/get/artist';
     public static readonly API_ARTIST_MEDIA_LIST_PATH: string = '/api/v2/song/get/list';
+    public static readonly API_RELEASE_CHART_PATH: string = '/api/v2/page/get/newrelease-chart';
 
     public static getIDFromURL(url: string): string {
         if (typeof url !== 'string' || !url.trim().length)
@@ -151,14 +152,18 @@ class Client {
             throw new Lapse('ID must be a non-empty string', 'ERROR_INVALID_ID');
 
         try {
-            videoID = isURL(value) ? Client.getIDFromURL(value) : value;
+            const id = isURL(value) ? Client.getIDFromURL(value) : value;
 
             void await ensureCookies(this.instance);
 
             const response: ResponseData<RawVideo> = await this.instance.get(Client.API_VIDEO_PATH, {
                 params: {
-                    id: videoID,
-                    sig: createSignature(Client.API_VIDEO_PATH, 'ctime=' + this.ctime + 'id=' + videoID + 'version=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                    id,
+                    sig: createSignature(Client.API_VIDEO_PATH, {
+                        ctime: this.ctime,
+                        id,
+                        version: Client.VERSION_URL_V1
+                    }, Client.SECRET_KEY_V1)
                 }
             });
 
@@ -256,14 +261,18 @@ class Client {
             throw new Lapse('ID must be a non-empty string', 'ERROR_INVALID_ID');
 
         try {
-            musicID = isURL(value) ? Client.getIDFromURL(value) : value;
+            const id = isURL(value) ? Client.getIDFromURL(value) : value;
 
             void await ensureCookies(this.instance);
 
             const response: ResponseData<RawMusic> = await this.instance.get(Client.API_MUSIC_PATH, {
                 params: {
-                    id: musicID,
-                    sig: createSignature(Client.API_MUSIC_PATH, 'ctime=' + this.ctime + 'id=' + musicID + 'version=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                    id,
+                    sig: createSignature(Client.API_MUSIC_PATH, {
+                        ctime: this.ctime,
+                        id,
+                        version: Client.VERSION_URL_V1
+                    }, Client.SECRET_KEY_V1)
                 }
             });
 
@@ -276,9 +285,12 @@ class Client {
 
                     const retryData: ResponseData<RawMusic> = await this.instance.get(Client.EXTRA_API_MUSIC_PATH, {
                         params: {
-                            id: musicID,
+                            id,
                             api_key: Client.API_KEY_V3,
-                            sig: createSignature('/song/get-song-info', 'ctime=' + this.ctime + 'id=' + musicID, Client.SECRET_KEY_V3),
+                            sig: createSignature('/song/get-song-info', {
+                                ctime: this.ctime,
+                                id
+                            }, Client.SECRET_KEY_V3),
                             version: void 0,
                             apiKey: void 0
                         }
@@ -383,7 +395,11 @@ class Client {
             const response: ResponseData<RawPlayList> = await this.instance.get(Client.API_PLAYLIST_PATH, {
                 params: {
                     id: playlistID,
-                    sig: createSignature(Client.API_PLAYLIST_PATH, 'ctime=' + this.ctime + 'id=' + playlistID + 'version=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                    sig: createSignature(Client.API_PLAYLIST_PATH, {
+                        ctime: this.ctime,
+                        id: playlistID,
+                        version: Client.VERSION_URL_V1
+                    }, Client.SECRET_KEY_V1)
                 }
             });
 
@@ -411,7 +427,10 @@ class Client {
             const response: ResponseData<RawArtist> = await this.instance.get(Client.API_ARTIST_PATH, {
                 params: {
                     alias: aliasID,
-                    sig: createSignature(Client.API_ARTIST_PATH, 'ctime=' + this.ctime + 'version=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                    sig: createSignature(Client.API_ARTIST_PATH, {
+                        ctime: this.ctime,
+                        version: Client.VERSION_URL_V1
+                    }, Client.SECRET_KEY_V1)
                 }
             });
 
@@ -431,7 +450,14 @@ class Client {
                     sectionId: 'aSong',
                     apiKey: Client.API_KEY_V2,
                     version: Client.VERSION_URL_V2,
-                    sig: createSignature(Client.API_ARTIST_MEDIA_LIST_PATH, 'count=0ctime=' + this.ctime + 'id=' + response.data.id + 'page=1type=artistversion=' + Client.VERSION_URL_V2, Client.SECRET_KEY_V2)
+                    sig: createSignature(Client.API_ARTIST_MEDIA_LIST_PATH, {
+                        count: 0,
+                        ctime: this.ctime,
+                        id: response.data.id,
+                        page: 1,
+                        type: 'artist',
+                        version: Client.VERSION_URL_V2
+                    }, Client.SECRET_KEY_V2)
                 }
             });
 
@@ -449,14 +475,18 @@ class Client {
             throw new Lapse('ID must be a non-empty string', 'ERROR_INVALID_ID');
 
         try {
-            mediaID = isURL(value) ? Client.getIDFromURL(value) : value;
+            const id = isURL(value) ? Client.getIDFromURL(value) : value;
 
             void await ensureCookies(this.instance);
 
             const response: ResponseData<RawMedia> = await this.instance.get(Client.API_MEDIA_DETAILS_PATH, {
                 params: {
-                    id: mediaID,
-                    sig: createSignature(Client.API_MEDIA_DETAILS_PATH, 'ctime=' + this.ctime + 'id=' + mediaID + 'version=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                    id,
+                    sig: createSignature(Client.API_MEDIA_DETAILS_PATH, {
+                        ctime: this.ctime,
+                        id,
+                        version: Client.VERSION_URL_V1
+                    }, Client.SECRET_KEY_V1)
                 }
             });
 
@@ -486,7 +516,13 @@ class Client {
                     type: 'song',
                     page: 1,
                     count: 20,
-                    sig: createSignature(Client.API_SEARCH_PATH, 'count=20ctime=' + this.ctime + 'page=1type=songversion=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                    sig: createSignature(Client.API_SEARCH_PATH, {
+                        count: 20,
+                        ctime: this.ctime,
+                        page: 1,
+                        type: 'song',
+                        version: Client.VERSION_URL_V1
+                    }, Client.SECRET_KEY_V1)
                 }
             });
 
@@ -513,7 +549,13 @@ class Client {
                     type: 'video',
                     page: 1,
                     count: 20,
-                    sig: createSignature(Client.API_SEARCH_PATH, 'count=20ctime=' + this.ctime + 'page=1type=videoversion=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                    sig: createSignature(Client.API_SEARCH_PATH, {
+                        count: 20,
+                        ctime: this.ctime,
+                        page: 1,
+                        type: 'video',
+                        version: Client.VERSION_URL_V1
+                    }, Client.SECRET_KEY_V1)
                 }
             });
 
@@ -540,7 +582,13 @@ class Client {
                     type: 'playlist',
                     page: 1,
                     count: 20,
-                    sig: createSignature(Client.API_SEARCH_PATH, 'count=20ctime=' + this.ctime + 'page=1type=playlistversion=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                    sig: createSignature(Client.API_SEARCH_PATH, {
+                        count: 20,
+                        ctime: this.ctime,
+                        page: 1,
+                        type: 'playlist',
+                        version: Client.VERSION_URL_V1
+                    }, Client.SECRET_KEY_V1)
                 }
             });
 
@@ -567,7 +615,13 @@ class Client {
                     type: 'artist',
                     page: 1,
                     count: 20,
-                    sig: createSignature(Client.API_SEARCH_PATH, 'count=20ctime=' + this.ctime + 'page=1type=artistversion=' + Client.VERSION_URL_V1, Client.SECRET_KEY_V1)
+                    sig: createSignature(Client.API_SEARCH_PATH, {
+                        count: 20,
+                        ctime: this.ctime,
+                        page: 1,
+                        type: 'artist',
+                        version: Client.VERSION_URL_V1
+                    }, Client.SECRET_KEY_V1)
                 }
             });
 
@@ -577,6 +631,29 @@ class Client {
             return response.data.items.map(createSearchArtist);
         } catch (error: unknown) {
             const lapse = error instanceof Lapse ? error : new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+            throw lapse;
+        }
+    }
+
+    public async releaseChart(): Promise<MediaChart[]> {
+        try {
+            void await ensureCookies(this.instance);
+
+            const response: ResponseData<RawSearch<RawMediaChart>> = await this.instance.get(Client.API_RELEASE_CHART_PATH, {
+                params: {
+                    sig: createSignature(Client.API_RELEASE_CHART_PATH, {
+                        ctime: this.ctime,
+                        version: Client.VERSION_URL_V1
+                    }, Client.SECRET_KEY_V1)
+                }
+            });
+
+            if (response.err !== 0)
+                throw new Lapse('Release chart could not be fetched', 'ERROR_RELEASE_CHART_FETCH', response.err);
+
+            return response.data.items.map(createMediaChart);
+        } catch (error: unknown) {
+            const lapse = error instanceof Lapse ? error : new Lapse('Release chart could not be fetch', 'ERROR_RELEASE_CHART_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
             throw lapse;
         }
     }

@@ -362,4 +362,12 @@ describeIfLive('Live integration', function () {
         assert.equal(typeof items[0].alias, 'string');
         assert.equal(typeof items[0].followCount, 'number');
     });
+
+    it('releaseChart() returns MediaChart items', async function () {
+        const items = await client.releaseChart();
+        assert.ok(Array.isArray(items));
+        assert.ok(items.length > 0);
+        assert.equal(typeof items[0].id, 'string');
+        assert.equal(typeof items[0].rakingStatus, 'number');
+    });
 });

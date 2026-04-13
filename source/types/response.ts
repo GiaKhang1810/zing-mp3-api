@@ -82,6 +82,10 @@ type SearchMedia = Omit<Media, 'isPrivate' | 'releaseDate' | 'album'> & {
     album?: SearchMediaAlbum;
 }
 
+type MediaChart = Media & {
+    rakingStatus: number;
+}
+
 export type {
     Album,
     Artist,
@@ -94,5 +98,6 @@ export type {
     PlayList,
     SearchPlayList,
     SearchArtist,
-    SearchMediaAlbum
+    SearchMediaAlbum,
+    MediaChart
 }

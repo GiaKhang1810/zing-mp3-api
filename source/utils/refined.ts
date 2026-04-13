@@ -7,7 +7,8 @@ import type {
     RawSearchMedia,
     RawSearchPlayList,
     RawSearchArtist,
-    RawPlayListSong
+    RawPlayListSong,
+    RawMediaChart
 } from '../types/raw.js';
 
 import type {
@@ -18,7 +19,8 @@ import type {
     PlayList,
     SearchMedia,
     SearchPlayList,
-    SearchArtist
+    SearchArtist,
+    MediaChart
 } from '../types/response.js';
 
 export type {
@@ -113,6 +115,28 @@ function createMedia(data: RawMedia): Media {
     }
 }
 
+function createMediaChart(data: RawMediaChart): MediaChart {
+    return {
+        id: data.encodeId,
+        name: data.title,
+        alias: data.alias,
+        isOffical: data.isOffical,
+        username: data.username,
+        artists: (data.artists ?? []).map(createArtistRef),
+        isWorldWide: data.isWorldWide,
+        thumbnail: {
+            w94: data.thumbnail,
+            w240: data.thumbnailM
+        },
+        duration: data.duration,
+        rakingStatus: data.rakingStatus,
+        isPrivate: data.isPrivate,
+        releaseDate: data.releaseDate,
+        album: data.album ? createAlbum(data.album) : void 0,
+        hasLyric: !!data.hasLyric
+    }
+}
+
 function createSearchMedia(data: RawSearchMedia): SearchMedia {
     return {
         id: data.encodeId,
@@ -190,5 +214,6 @@ export {
     createPlayList,
     createSearchMedia,
     createSearchPlayList,
-    createSearchArtist
+    createSearchArtist,
+    createMediaChart
 }

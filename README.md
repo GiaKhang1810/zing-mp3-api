@@ -1,19 +1,19 @@
-# **@KHANG07/ZING-MP3-API**
+
+![ @KHANG07/ZING-MP3-API ](https://socialify.git.ci/GiaKhang1810/zing-mp3-api/image?font=Raleway&language=1&owner=1&stargazers=1&theme=Dark)
 
 A TypeScript library for working with [Zing MP3](https://zingmp3.vn) resources from Node.js.
-It can search songs, videos, playlists, and artists; fetch detailed metadata;
-and return readable streams for music and video playback or download.
+It supports searching songs, videos, playlists, and artists; fetching metadata;
+and returning readable streams for music and video playback or download.
 
-For the source code, releases, and package metadata, visit the
+For source code, releases, and package metadata, see the
 [GitHub repository](https://github.com/GiaKhang1810/zing-mp3-api) and the
 [npm package](https://www.npmjs.com/package/@khang07/zing-mp3-api).
 Report bugs or request features in the
 [issue tracker](https://github.com/GiaKhang1810/zing-mp3-api/issues).
 
-
 ## Table of contents
 
-- [Requirement](#requirements)
+- [Requirements](#requirements)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
@@ -24,34 +24,30 @@ Report bugs or request features in the
 - [Maintainers](#maintainers)
 - [License](#license)
 
-
 ## Requirements
 
-This package has no special runtime requirements beyond a modern Node.js
-environment and network access to [Zing MP3](https://zingmp3.vn).
+This package requires a modern Node.js environment and network access to
+[Zing MP3](https://zingmp3.vn).
 
 Project dependencies:
 
 - [axios](https://www.npmjs.com/package/axios)
 - [m3u8stream](https://www.npmjs.com/package/m3u8stream)
 
-Development tooling used by the project:
+Development dependencies:
 
-- [@types/node](https:/t/www.npmjs.com/package/@types/node)
+- [@types/node](https://www.npmjs.com/package/@types/node)
 - [mocha](https://www.npmjs.com/package/mocha)
 - [rollup](https://www.npmjs.com/package/rollup)
 - [typescript](https://www.npmjs.com/package/typescript)
 
-
 ## Installation
-
-Install the package with npm:
 
 ```bash
 npm install @khang07/zing-mp3-api
-```
+````
 
-Build the project from source:
+Build from source:
 
 ```bash
 npm run build
@@ -69,11 +65,12 @@ Run live integration tests:
 ZING_MP3_LIVE=1 npm test
 ```
 
-
 ## Configuration
 
-The library works out of the box with the default exported client.
-If you need more control, create a `Client` instance with custom options.
+Use the default exported client for quick access, or create a custom `Client`
+instance when you need to override options.
+
+### Create a custom client
 
 ```ts
 import { Client, Cookies } from "@khang07/zing-mp3-api";
@@ -88,12 +85,10 @@ const client = new Client({
 });
 ```
 
-Or
+### Update the default client
 
 ```ts
-import client from "@khang07/zing-mp3-api"
-
-const jar = client.getJar();
+import client from "@khang07/zing-mp3-api";
 
 client.setOptions({
     maxLoad: 1024 * 1024,
@@ -101,20 +96,18 @@ client.setOptions({
     userAgent:
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
         "(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
-    jar: jar
-})
+    jar: client.getJar()
+});
 ```
 
-`ClientOptions` fields:
+`ClientOptions`:
 
-- `maxLoad`: request rate limit passed to Axios as `maxRate`
-- `maxHighWaterMark`: stream buffer size used by `musicSync()` and `videoSync()`
-- `userAgent`: custom request user-agent string
-- `jar`: custom cookie jar instance
+* `maxLoad`: request rate limit passed to Axios as `maxRate`
+* `maxHighWaterMark`: stream buffer size used by `musicSync()` and `videoSync()`
+* `userAgent`: custom request user-agent string
+* `jar`: custom cookie jar instance
 
-There is no additional post-install configuration required.
 The client automatically fetches and stores cookies before protected requests.
-
 
 ## Usage
 
@@ -130,11 +123,9 @@ import client, { Client } from "@khang07/zing-mp3-api";
 const { default: client, Client } = require("@khang07/zing-mp3-api");
 ```
 
-### Search for songs
+### Search songs
 
 ```ts
-import client from "@khang07/zing-mp3-api";
-
 const items = await client.searchMusic("Skyfall");
 console.log(items[0]);
 ```
@@ -142,8 +133,6 @@ console.log(items[0]);
 ### Fetch playlist details
 
 ```ts
-import client from "@khang07/zing-mp3-api";
-
 const playlist = await client.playlist(
     "https://zingmp3.vn/album/example/ZWZB9WAB.html"
 );
@@ -155,8 +144,6 @@ console.log(playlist.mediaCount);
 ### Fetch artist details
 
 ```ts
-import client from "@khang07/zing-mp3-api";
-
 const artist = await client.artist("https://zingmp3.vn/Obito");
 
 console.log(artist.name);
@@ -167,7 +154,6 @@ console.log(artist.followCount);
 
 ```ts
 import { createWriteStream } from "node:fs";
-import client from "@khang07/zing-mp3-api";
 
 const items = await client.searchMusic("Example");
 const stream = await client.music(items[0].id);
@@ -179,7 +165,6 @@ stream.pipe(createWriteStream("music.mp3"));
 
 ```ts
 import { createWriteStream } from "node:fs";
-import client from "@khang07/zing-mp3-api";
 
 const items = await client.searchVideo("Example");
 const stream = await client.video(items[0].id);
@@ -191,7 +176,6 @@ stream.pipe(createWriteStream("video.ts"));
 
 ```ts
 import { createWriteStream } from "node:fs";
-import client from "@khang07/zing-mp3-api";
 
 const stream = client.musicSync("Example ID");
 stream.pipe(createWriteStream("music.mp3"));
@@ -214,7 +198,6 @@ try {
 }
 ```
 
-
 ## API reference
 
 ### `new Client(options?)`
@@ -228,82 +211,65 @@ Throws `ERROR_INVALID_URL` when the input is empty or unsupported.
 
 ### Instance methods
 
-| Method | Returns | Description |
-| --- | --- | --- |
-| `getJar()` | `Cookies` | Get Cookies instance. |
-| `setOptions(options?)` | `void` | set options. |
-| `video(videoID)` | `Promise<Readable>` | Fetch a video stream from a raw ID, URL string, or `URL` object. |
-| `videoSync(videoID)` | `Readable` | Return a `PassThrough` immediately and pipe the resolved video stream into it. |
-| `music(musicID)` | `Promise<Readable>` | Fetch a music stream from a raw ID, URL string, or `URL` object. |
-| `musicSync(musicID)` | `Readable` | Return a `PassThrough` immediately and pipe the resolved music stream into it. |
-| `playlist(playlistID)` | `Promise<PlayList>` | Fetch playlist details. |
-| `artist(aliasID)` | `Promise<Artist>` | Fetch artist details. |
-| `mediaDetails(mediaID)` | `Promise<Media>` | Fetch song details. |
-| `searchMusic(query)` | `Promise<SearchMedia[]>` | Search songs. |
-| `searchVideo(query)` | `Promise<SearchMedia[]>` | Search videos. |
-| `searchList(query)` | `Promise<SearchPlayList[]>` | Search playlists. |
-| `searchArtist(query)` | `Promise<SearchArtist[]>` | Search artists. |
+| Method                  | Returns                     | Description                                                                      |
+| ----------------------- | --------------------------- | -------------------------------------------------------------------------------- |
+| `getJar()`              | `Cookies`                   | Returns the current cookie jar.                                                  |
+| `setOptions(options?)`  | `void`                      | Updates client options.                                                          |
+| `video(videoID)`        | `Promise<Readable>`         | Fetches a video stream from an ID, URL string, or `URL` object.                  |
+| `videoSync(videoID)`    | `Readable`                  | Returns a `PassThrough` immediately and pipes the resolved video stream into it. |
+| `music(musicID)`        | `Promise<Readable>`         | Fetches a music stream from an ID, URL string, or `URL` object.                  |
+| `musicSync(musicID)`    | `Readable`                  | Returns a `PassThrough` immediately and pipes the resolved music stream into it. |
+| `playlist(playlistID)`  | `Promise<PlayList>`         | Fetches playlist details.                                                        |
+| `artist(aliasID)`       | `Promise<Artist>`           | Fetches artist details.                                                          |
+| `mediaDetails(mediaID)` | `Promise<Media>`            | Fetches song details.                                                            |
+| `searchMusic(query)`    | `Promise<SearchMedia[]>`    | Searches songs.                                                                  |
+| `searchVideo(query)`    | `Promise<SearchMedia[]>`    | Searches videos.                                                                 |
+| `searchList(query)`     | `Promise<SearchPlayList[]>` | Searches playlists.                                                              |
+| `searchArtist(query)`   | `Promise<SearchArtist[]>`   | Searches artists.                                                                |
+| `releaseChart()`        | `Promise<MediaChart[]>`     | Gets the latest ranking list.                                                    |
 
 ### Method notes
 
-- `video()` prefers `720p` and falls back to `360p`
-- `music()` prefers `320kbps` when available and falls back to `128kbps`
-- If the main music endpoint returns a VIP-only response, `music()` retries the
-  extra music endpoint before throwing `ERROR_MUSIC_VIP_ONLY`
-- Search methods currently request the first page with `count: 20`
-- `musicSync()` and `videoSync()` forward stream failures to the returned
-  `PassThrough` and destroy the source stream when the output is closed
-
-### Data types
-
-Public type exports from the root entry:
-
-- `ClientOptions`
-- `Artist`
-- `Media`
-- `PlayList`
-- `SearchArtist`
-- `SearchMedia`
-- `SearchPlayList`
-
+* `video()` prefers `720p` and falls back to `360p`
+* `music()` prefers `320kbps` and falls back to `128kbps`
+* if the main music endpoint returns VIP-only data, `music()` retries the extra endpoint before throwing `ERROR_MUSIC_VIP_ONLY`
+* search methods currently request the first page with `count: 20`
+* `musicSync()` and `videoSync()` forward stream failures to the returned `PassThrough` and destroy the source stream when the output is closed
 
 ## Public exports
 
-### Root export
+### Runtime exports
 
-Runtime exports:
+* `default`: ready-to-use `Client` instance
+* `Client`: client class
+* `Cookies`: cookie jar class
+* `createSignature`: signature function
+* `Lapse`: custom error class
 
-- `default`: a ready-to-use `Client` instance
-- `Client`: the client class
-- `Cookies`: the cookies class
-- `createSignature`: signature function
-- `Lapse`: the custom error class
+### Type exports
 
-Type exports:
-
-- `ClientOptions`
-- `Artist`
-- `Media`
-- `PlayList`
-- `SearchArtist`
-- `SearchMedia`
-- `SearchPlayList`
+* `ClientOptions`
+* `Artist`
+* `Media`
+* `PlayList`
+* `SearchArtist`
+* `SearchMedia`
+* `SearchPlayList`
+* `MediaChart`
 
 ### `Cookies` helper
 
 Methods:
 
-- `setCookie(setCookie, requestUrl)`
-- `setCookies(setCookies, requestUrl)`
-- `getCookies(requestUrl)`
-- `getCookieHeader(requestUrl)`
-- `applyToHeaders(requestUrl, headers?)`
-- `deleteCookie(domain, path, name)`
-- `cleanup()`
-- `toJSON()`
-- `fromJSON(cookies)`
-
-Cookie record shape:
+* `setCookie(setCookie, requestUrl)`
+* `setCookies(setCookies, requestUrl)`
+* `getCookies(requestUrl)`
+* `getCookieHeader(requestUrl)`
+* `applyToHeaders(requestUrl, headers?)`
+* `deleteCookie(domain, path, name)`
+* `cleanup()`
+* `toJSON()`
+* `fromJSON(cookies)`
 
 ```ts
 interface CookieRecord {
@@ -330,67 +296,61 @@ jar.setCookie("sid=abc; Path=/; HttpOnly", "https://zingmp3.vn/");
 console.log(jar.getCookieHeader("https://zingmp3.vn/"));
 ```
 
-
 ## Error handling
 
-The library throws `Lapse`, a custom error type with the following fields:
+The library throws `Lapse`, a custom error type with these fields:
 
-- `name`
-- `message`
-- `code`
-- `status`
-- `cause`
+* `name`
+* `message`
+* `code`
+* `status`
+* `cause`
 
-Known library error codes:
+Known error codes:
 
-- `ERROR_ARTIST_FETCH`
-- `ERROR_ARTIST_NOT_FOUND`
-- `ERROR_INVALID_ID`
-- `ERROR_INVALID_QUERY`
-- `ERROR_INVALID_URL`
-- `ERROR_MEDIA_FETCH`
-- `ERROR_MEDIA_NOT_FOUND`
-- `ERROR_MUSIC_FETCH`
-- `ERROR_MUSIC_VIP_ONLY`
-- `ERROR_PLAYLIST_FETCH`
-- `ERROR_PLAYLIST_NOT_FOUND`
-- `ERROR_SEARCH_FAILED`
-- `ERROR_SEARCH_FETCH`
-- `ERROR_STREAM_DOWNLOAD`
-- `ERROR_STREAM_URL_NOT_FOUND`
-- `ERROR_VIDEO_FETCH`
-- `ERROR_VIDEO_NOT_FOUND`
-
+* `ERROR_ARTIST_FETCH`
+* `ERROR_ARTIST_NOT_FOUND`
+* `ERROR_INVALID_ID`
+* `ERROR_INVALID_QUERY`
+* `ERROR_INVALID_URL`
+* `ERROR_MEDIA_FETCH`
+* `ERROR_MEDIA_NOT_FOUND`
+* `ERROR_MUSIC_FETCH`
+* `ERROR_MUSIC_VIP_ONLY`
+* `ERROR_PLAYLIST_FETCH`
+* `ERROR_PLAYLIST_NOT_FOUND`
+* `ERROR_SEARCH_FAILED`
+* `ERROR_SEARCH_FETCH`
+* `ERROR_STREAM_DOWNLOAD`
+* `ERROR_STREAM_URL_NOT_FOUND`
+* `ERROR_VIDEO_FETCH`
+* `ERROR_VIDEO_NOT_FOUND`
+* `ERROR_RELEASE_CHART_FETCH`
 
 ## Troubleshooting & FAQ
 
 ### `video()` returns a stream, but saved files do not open as MP4
 
 Video playback is fetched from an HLS source via `m3u8stream`. If you write the
-stream directly to disk, save it as a transport-stream style output such as
-`.ts`, or post-process it with your own media pipeline.
+stream directly to disk, save it as `.ts` or post-process it with your own media pipeline.
 
 ### Music lookup fails with `ERROR_MUSIC_VIP_ONLY`
 
-Some tracks are restricted. The client already retries the fallback music
-endpoint, but a playable URL may still be unavailable.
+Some tracks are restricted. The fallback endpoint may still return no playable URL.
 
 ### I want to reuse cookies between sessions
 
 Use `jar.toJSON()` to persist cookies and `jar.fromJSON()` to restore them.
-This is useful if you want to avoid starting from an empty cookie jar each time.
 
 ### Input URLs fail with `ERROR_INVALID_URL`
 
-Use either a standard Zing MP3 HTML URL such as
-`https://zingmp3.vn/bai-hat/test/ZWZB9WAB.html` or a root-style artist URL such
-as `https://zingmp3.vn/mono`.
-
+Use a standard Zing MP3 HTML URL such as
+`https://zingmp3.vn/bai-hat/test/ZWZB9WAB.html` or a root-style artist URL such as
+`https://zingmp3.vn/mono`.
 
 ## Maintainers
 
-- GiaKhang - [GiaKhang1810](https://github.com/GiaKhang1810)
-
+* GiaKhang - [GiaKhang1810](https://github.com/GiaKhang1810)
 
 ## License
 

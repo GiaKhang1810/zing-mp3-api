@@ -103,6 +103,10 @@ interface RawPlayList extends RawThumbnail {
 
 type RawSearchPlayList = Omit<RawPlayList, 'song' | 'listen' | 'like' | 'description' | 'contentLastUpdate'>;
 
+type RawMediaChart = RawMedia & {
+    rakingStatus: number;
+}
+
 interface RawSearch<Data> {
     items: Data[];
 }
@@ -126,5 +130,6 @@ export type {
     RawVideoQuality,
     RawVideoStreaming,
     RawSearchPlayList,
-    RawSearchArtist
+    RawSearchArtist,
+    RawMediaChart
 }

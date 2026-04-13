@@ -13,7 +13,7 @@ export default {
         dir: 'dist/cjs',
         format: 'cjs',
         exports: 'named',
-        sourcemap: true,
+        sourcemap: false,
         preserveModules: true,
         preserveModulesRoot: 'dist/esm',
         entryFileNames: '[name].cjs',
