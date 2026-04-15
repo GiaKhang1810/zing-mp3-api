@@ -57,7 +57,7 @@ class Client {
         if (typeof url !== 'string' || !url.trim().length)
             throw new Lapse('URL must be a non-empty string', 'ERROR_INVALID_URL');
 
-        const match: RegExpMatchArray | null = url.match(/\/([A-Z0-9]{8})\.html(?:\?|#|$)/i) || url.match(/^https?:\/\/zingmp3\.vn\/([^/?#]+)\/?(?:[?#].*)?$/i);
+        const match: RegExpMatchArray | null = url.match(/\/([A-Z0-9]{8})\.html(?:\?|#|$)/i) || url.match(/^https?:\/\/(?:m\.)?zingmp3\.vn\/([^/?#]+)\/?(?:[?#].*)?$/i);
 
         if (!match)
             throw new Lapse('Could not extract ID from URL', 'ERROR_INVALID_URL');
