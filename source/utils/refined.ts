@@ -4,11 +4,9 @@ import type {
     RawAlbum,
     RawMedia,
     RawPlayList,
-    RawSearchMedia,
-    RawSearchPlayList,
-    RawSearchArtist,
     RawPlayListSong,
-    RawMediaChart
+    RawMediaChart,
+    RawSearchObj
 } from '../types/raw.js';
 
 import type {
@@ -20,7 +18,8 @@ import type {
     SearchMedia,
     SearchPlayList,
     SearchArtist,
-    MediaChart
+    MediaChart,
+    SearchObj
 } from '../types/response.js';
 
 export type {
@@ -48,7 +47,7 @@ function createArtistRef(data: RawArtistItem): ArtistRef {
     }
 }
 
-function createSearchArtist(data: RawSearchArtist): SearchArtist {
+function createSearchArtist(data: RawSearchObj['artist']): SearchObj['artist'] {
     return {
         id: data.id,
         alias: data.alias,
@@ -137,7 +136,7 @@ function createMediaChart(data: RawMediaChart): MediaChart {
     }
 }
 
-function createSearchMedia(data: RawSearchMedia): SearchMedia {
+function createSearchMedia(data: RawSearchObj['music'] | RawSearchObj['video']): SearchObj['music'] | SearchObj['video'] {
     return {
         id: data.encodeId,
         name: data.title,
@@ -190,7 +189,7 @@ function createPlayList(data: RawPlayList): PlayList {
     }
 }
 
-function createSearchPlayList(data: RawSearchPlayList): SearchPlayList {
+function createSearchPlayList(data: RawSearchObj['playlist']): SearchObj['playlist'] {
     return {
         id: data.encodeId,
         name: data.title,

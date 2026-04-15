@@ -11,9 +11,9 @@ import { createArtist, createMedia, createSearchMedia, createPlayList, createSea
 import type { AxiosInstance } from 'axios';
 import type { Readable } from 'node:stream';
 import type { ClientOptions } from './types/client.js';
-import type { RawArtist, RawMedia, RawMediaChart, RawMusic, RawPlayList, RawPlayListSong, RawSearch, RawSearchArtist, RawSearchMedia, RawSearchPlayList, RawVideo, ResponseData } from './types/raw.js';
-import type { Artist, Media, SearchMedia, PlayList, SearchPlayList, SearchArtist } from './utils/refined.js';
-import type { MediaChart } from './types/response.js';
+import type { RawArtist, RawMedia, RawMediaChart, RawMusic, RawPlayList, RawPlayListSong, RawSearch, RawSearchArtist, RawSearchMedia, RawSearchObj, RawSearchPlayList, RawVideo, ResponseData } from './types/raw.js';
+import type { Artist, Media, PlayList } from './utils/refined.js';
+import type { MediaChart, ParamSearch, SearchObj } from './types/response.js';
 
 export type * from './types/index.js';
 
@@ -113,7 +113,7 @@ class Client {
         this.instance.interceptors.response.use(
             (response) => {
                 const setCookie = response.headers['set-cookie'];
-                const requestURL = response.request?.res?.responseUrl ?? response.config.url;
+                const requestURL: string | void = response.request?.res?.responseUrl ?? response.config.url;
 
                 if (
                     requestURL && Array.isArray(setCookie)
@@ -175,7 +175,7 @@ class Client {
             if (!videoURL || !videoURL.length)
                 throw new Lapse('Streaming URL not found', 'ERROR_STREAM_URL_NOT_FOUND');
 
-            const source: Readable = m3u8stream(videoURL, {
+            const source = m3u8stream(videoURL, {
                 highWaterMark: this.maxHighWaterMark
             });
 
@@ -188,8 +188,11 @@ class Client {
 
             return source;
         } catch (error: unknown) {
-            const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch video stream', 'ERROR_VIDEO_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
-            throw lapse;
+            if (error instanceof Lapse)
+                throw error;
+
+            const message = error instanceof Error ? error.message : 'An unknown error occurred while fetching';
+            throw new Lapse(message, 'ERROR_VIDEO_FETCH', void 0, error);
         }
     }
 
@@ -230,7 +233,13 @@ class Client {
 
                     source.once('error',
                         (error: unknown): void => {
-                            const lapse = error instanceof Lapse ? error : new Lapse('Stream download failed', 'ERROR_STREAM_DOWNLOAD', void 0, error);
+                            if (error instanceof Lapse) {
+                                video.destroy(error);
+                                return;
+                            }
+
+                            const message = error instanceof Error ? error.message : 'An unknown error occurred while downloading stream';
+                            const lapse = new Lapse(message, 'ERROR_STREAM_DOWNLOAD', void 0, error);
                             video.destroy(lapse);
                         }
                     );
@@ -245,8 +254,13 @@ class Client {
             )
             .catch(
                 (error: unknown): void => {
-                    const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch video stream', 'ERROR_VIDEO_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+                    if (error instanceof Lapse) {
+                        video.destroy(error);
+                        return;
+                    }
 
+                    const message = error instanceof Error ? error.message : 'An unknown error occurred while fetching';
+                    const lapse = new Lapse(message, 'ERROR_VIDEO_FETCH', void 0, error);
                     video.destroy(lapse);
                 }
             );
@@ -281,7 +295,7 @@ class Client {
             if (response.err === -1150) {
                 const retry = async (step: number, before?: ResponseData<RawMusic>): Promise<string | void> => {
                     if (step > 3)
-                        throw new Lapse('Music requested by VIP, PRI', 'ERROR_MUSIC_VIP_ONLY', before ? before.err : void 0);
+                        throw new Lapse('Music requested by VIP, PRI', 'ERROR_MUSIC_VIP_ONLY', void 0, before ? before.err : void 0);
 
                     const retryData: ResponseData<RawMusic> = await this.instance.get(Client.EXTRA_API_MUSIC_PATH, {
                         params: {
@@ -319,8 +333,11 @@ class Client {
 
             return source;
         } catch (error: unknown) {
-            const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch music stream', 'ERROR_MUSIC_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
-            throw lapse;
+            if (error instanceof Lapse)
+                throw error;
+
+            const message = error instanceof Error ? error.message : 'An unknown error occurred while fetching';
+            throw new Lapse(message, 'ERROR_MUSIC_FETCH', void 0, error);
         }
     }
 
@@ -357,7 +374,13 @@ class Client {
 
                     source.once('error',
                         (error: unknown): void => {
-                            const lapse = error instanceof Lapse ? error : new Lapse('Stream download failed', 'ERROR_STREAM_DOWNLOAD', void 0, error);
+                            if (error instanceof Lapse) {
+                                music.destroy(error);
+                                return;
+                            }
+
+                            const message = error instanceof Error ? error.message : 'An unknown error occurred while downloading stream.';
+                            const lapse = new Lapse(message, 'ERROR_STREAM_DOWNLOAD', void 0, error);
                             music.destroy(lapse);
                         }
                     );
@@ -372,8 +395,13 @@ class Client {
             )
             .catch(
                 (error: unknown): void => {
-                    const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch music stream', 'ERROR_MUSIC_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
+                    if (error instanceof Lapse) {
+                        music.destroy(error);
+                        return;
+                    }
 
+                    const message = error instanceof Error ? error.message : 'An unknown error occurred while fetching';
+                    const lapse = new Lapse(message, 'ERROR_MUSIC_FETCH', void 0, error);
                     music.destroy(lapse);
                 }
             );
@@ -408,8 +436,11 @@ class Client {
 
             return createPlayList(response.data);
         } catch (error: unknown) {
-            const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch playlist', 'ERROR_PLAYLIST_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
-            throw lapse;
+            if (error instanceof Lapse)
+                throw error;
+
+            const message = error instanceof Error ? error.message : 'An unknown error occurred while fetching';
+            throw new Lapse(message, 'ERROR_PLAYLIST_FETCH', void 0, error);
         }
     }
 
@@ -463,8 +494,11 @@ class Client {
 
             return createArtist(response.data, mediaList.data);
         } catch (error: unknown) {
-            const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch artist', 'ERROR_ARTIST_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
-            throw lapse;
+            if (error instanceof Lapse)
+                throw error;
+
+            const message = error instanceof Error ? error.message : 'An unknown error occurred while fetching';
+            throw new Lapse(message, 'ERROR_ARTIST_FETCH', void 0, error);
         }
     }
 
@@ -498,140 +532,11 @@ class Client {
 
             return createMedia(response.data);
         } catch (error: unknown) {
-            const lapse = error instanceof Lapse ? error : new Lapse('Failed to fetch media', 'ERROR_MEDIA_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
-            throw lapse;
-        }
-    }
+            if (error instanceof Lapse)
+                throw error;
 
-    public async searchMusic(query: string): Promise<SearchMedia[]> {
-        if (typeof query !== 'string' || !query.trim().length)
-            throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
-
-        try {
-            void await ensureCookies(this.instance);
-
-            const response: ResponseData<RawSearch<RawMedia>> = await this.instance.get(Client.API_SEARCH_PATH, {
-                params: {
-                    q: query,
-                    type: 'song',
-                    page: 1,
-                    count: 20,
-                    sig: createSignature(Client.API_SEARCH_PATH, {
-                        count: 20,
-                        ctime: this.ctime,
-                        page: 1,
-                        type: 'song',
-                        version: Client.VERSION_URL_V1
-                    }, Client.SECRET_KEY_V1)
-                }
-            });
-
-            if (response.err !== 0)
-                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err);
-
-            return (response.data.items ?? []).map(createSearchMedia);
-        } catch (error: unknown) {
-            const lapse = error instanceof Lapse ? error : new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
-            throw lapse;
-        }
-    }
-
-    public async searchVideo(query: string): Promise<SearchMedia[]> {
-        if (typeof query !== 'string' || !query.trim().length)
-            throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
-
-        try {
-            void await ensureCookies(this.instance);
-
-            const response: ResponseData<RawSearch<RawSearchMedia>> = await this.instance.get(Client.API_SEARCH_PATH, {
-                params: {
-                    q: query,
-                    type: 'video',
-                    page: 1,
-                    count: 20,
-                    sig: createSignature(Client.API_SEARCH_PATH, {
-                        count: 20,
-                        ctime: this.ctime,
-                        page: 1,
-                        type: 'video',
-                        version: Client.VERSION_URL_V1
-                    }, Client.SECRET_KEY_V1)
-                }
-            });
-
-            if (response.err !== 0)
-                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err);
-
-            return (response.data.items ?? []).map(createSearchMedia);
-        } catch (error: unknown) {
-            const lapse = error instanceof Lapse ? error : new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
-            throw lapse;
-        }
-    }
-
-    public async searchList(query: string): Promise<SearchPlayList[]> {
-        if (typeof query !== 'string' || !query.trim().length)
-            throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
-
-        try {
-            void await ensureCookies(this.instance);
-
-            const response: ResponseData<RawSearch<RawSearchPlayList>> = await this.instance.get(Client.API_SEARCH_PATH, {
-                params: {
-                    q: query,
-                    type: 'playlist',
-                    page: 1,
-                    count: 20,
-                    sig: createSignature(Client.API_SEARCH_PATH, {
-                        count: 20,
-                        ctime: this.ctime,
-                        page: 1,
-                        type: 'playlist',
-                        version: Client.VERSION_URL_V1
-                    }, Client.SECRET_KEY_V1)
-                }
-            });
-
-            if (response.err !== 0)
-                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err);
-
-            return response.data.items.map(createSearchPlayList);
-        } catch (error: unknown) {
-            const lapse = error instanceof Lapse ? error : new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
-            throw lapse;
-        }
-    }
-
-    public async searchArtist(query: string): Promise<SearchArtist[]> {
-        if (typeof query !== 'string' || !query.trim().length)
-            throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
-
-        try {
-            void await ensureCookies(this.instance);
-
-            const response: ResponseData<RawSearch<RawSearchArtist>> = await this.instance.get(Client.API_SEARCH_PATH, {
-                params: {
-                    q: query,
-                    type: 'artist',
-                    page: 1,
-                    count: 20,
-                    sig: createSignature(Client.API_SEARCH_PATH, {
-                        count: 20,
-                        ctime: this.ctime,
-                        page: 1,
-                        type: 'artist',
-                        version: Client.VERSION_URL_V1
-                    }, Client.SECRET_KEY_V1)
-                }
-            });
-
-            if (response.err !== 0)
-                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err);
-
-            return response.data.items.map(createSearchArtist);
-        } catch (error: unknown) {
-            const lapse = error instanceof Lapse ? error : new Lapse('Search could not be fetch', 'ERROR_SEARCH_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
-            throw lapse;
+            const message = error instanceof Error ? error.message : 'An unknown error occurred while fetching';
+            throw new Lapse(message, 'ERROR_MEDIA_FETCH', void 0, error);
         }
     }
 
@@ -653,8 +558,114 @@ class Client {
 
             return response.data.items.map(createMediaChart);
         } catch (error: unknown) {
-            const lapse = error instanceof Lapse ? error : new Lapse('Release chart could not be fetch', 'ERROR_RELEASE_CHART_FETCH', axios.isAxiosError(error) ? error.response?.status : void 0, error);
-            throw lapse;
+            if (error instanceof Lapse)
+                throw error;
+
+            const message = error instanceof Error ? error.message : 'An unknown error occurred while fetching';
+            throw new Lapse(message, 'ERROR_RELEASE_CHART_FETCH', void 0, error);
+        }
+    }
+
+    public async search<T extends keyof SearchObj>(query: string, type: T): Promise<SearchObj[T][]> {
+        if (typeof query !== 'string' || !query.trim().length)
+            throw new Lapse('Query must be a non-empty string', 'ERROR_INVALID_QUERY');
+
+        if (typeof type !== 'string' || !type.trim().length)
+            throw new Lapse('Type must be a non-empty string', 'ERROR_INVALID_TYPE');
+
+        if (!['music', 'video', 'artist', 'playlist'].includes(type))
+            throw new Lapse('Type not supported.', 'ERROR_INVALID_TYPE');
+
+        try {
+            void await ensureCookies(this.instance);
+
+            let params: ParamSearch;
+            switch (type) {
+                case 'music':
+                    params = {
+                        q: query,
+                        type: 'song',
+                        page: 1,
+                        count: 20,
+                        sig: createSignature(Client.API_SEARCH_PATH, {
+                            count: 20,
+                            ctime: this.ctime,
+                            page: 1,
+                            type: 'song',
+                            version: Client.VERSION_URL_V1
+                        }, Client.SECRET_KEY_V1)
+                    }
+                    break;
+                case 'video':
+                    params = {
+                        q: query,
+                        type: 'video',
+                        page: 1,
+                        count: 20,
+                        sig: createSignature(Client.API_SEARCH_PATH, {
+                            count: 20,
+                            ctime: this.ctime,
+                            page: 1,
+                            type: 'video',
+                            version: Client.VERSION_URL_V1
+                        }, Client.SECRET_KEY_V1)
+                    }
+                    break;
+                case 'artist':
+                    params = {
+                        q: query,
+                        type: 'artist',
+                        page: 1,
+                        count: 20,
+                        sig: createSignature(Client.API_SEARCH_PATH, {
+                            count: 20,
+                            ctime: this.ctime,
+                            page: 1,
+                            type: 'artist',
+                            version: Client.VERSION_URL_V1
+                        }, Client.SECRET_KEY_V1)
+                    }
+                    break;
+                case 'playlist':
+                    params = {
+                        q: query,
+                        type: 'playlist',
+                        page: 1,
+                        count: 20,
+                        sig: createSignature(Client.API_SEARCH_PATH, {
+                            count: 20,
+                            ctime: this.ctime,
+                            page: 1,
+                            type: 'playlist',
+                            version: Client.VERSION_URL_V1
+                        }, Client.SECRET_KEY_V1)
+                    }
+                    break;
+            }
+
+            const response: ResponseData<RawSearch<RawSearchObj[T]>> = await this.instance.get(Client.API_SEARCH_PATH, { params });
+
+            if (response.err !== 0)
+                throw new Lapse('Search could not be fetched', 'ERROR_SEARCH_FAILED', response.err);
+
+            const items = response.data.items ?? [];
+
+            switch (type) {
+                case 'music':
+                    return (items as RawSearchObj['music'][]).map(createSearchMedia) as SearchObj[T][];
+                case 'video':
+                    return (items as RawSearchObj['video'][]).map(createSearchMedia) as SearchObj[T][];
+                case 'artist':
+                    return (items as RawSearchObj['artist'][]).map(createSearchArtist) as SearchObj[T][];
+                case 'playlist':
+                    return (items as RawSearchObj['playlist'][]).map(createSearchPlayList) as SearchObj[T][];
+            }
+        } catch (error: unknown) {
+            if (error instanceof Lapse)
+                throw error;
+
+            const message = error instanceof Error ? error.message : 'An unknown error occurred while fetching';
+            throw new Lapse(message, 'ERROR_SEARCH_FETCH', void 0, error);
         }
     }
 }

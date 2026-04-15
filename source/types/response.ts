@@ -86,6 +86,15 @@ type MediaChart = Media & {
     rakingStatus: number;
 }
 
+interface SearchObj {
+    video: SearchMedia;
+    music: SearchMedia;
+    playlist: SearchPlayList;
+    artist: SearchArtist;
+}
+
+type ParamSearch = Record<string, string | number | void>;
+
 export type {
     Album,
     Artist,
@@ -99,5 +108,7 @@ export type {
     SearchPlayList,
     SearchArtist,
     SearchMediaAlbum,
-    MediaChart
+    MediaChart,
+    SearchObj,
+    ParamSearch
 }

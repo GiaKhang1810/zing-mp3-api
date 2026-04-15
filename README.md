@@ -222,10 +222,7 @@ Throws `ERROR_INVALID_URL` when the input is empty or unsupported.
 | `playlist(playlistID)`  | `Promise<PlayList>`         | Fetches playlist details.                                                        |
 | `artist(aliasID)`       | `Promise<Artist>`           | Fetches artist details.                                                          |
 | `mediaDetails(mediaID)` | `Promise<Media>`            | Fetches song details.                                                            |
-| `searchMusic(query)`    | `Promise<SearchMedia[]>`    | Searches songs.                                                                  |
-| `searchVideo(query)`    | `Promise<SearchMedia[]>`    | Searches videos.                                                                 |
-| `searchList(query)`     | `Promise<SearchPlayList[]>` | Searches playlists.                                                              |
-| `searchArtist(query)`   | `Promise<SearchArtist[]>`   | Searches artists.                                                                |
+| `search(query, type)`   | `Promise<SearchObj[type][]>`| Searches.                                                                        |
 | `releaseChart()`        | `Promise<MediaChart[]>`     | Gets the latest ranking list.                                                    |
 
 ### Method notes
@@ -312,6 +309,7 @@ Known error codes:
 * `ERROR_ARTIST_NOT_FOUND`
 * `ERROR_INVALID_ID`
 * `ERROR_INVALID_QUERY`
+* `ERROR_INVALID_TYPE`
 * `ERROR_INVALID_URL`
 * `ERROR_MEDIA_FETCH`
 * `ERROR_MEDIA_NOT_FOUND`

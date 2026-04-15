@@ -111,6 +111,13 @@ interface RawSearch<Data> {
     items: Data[];
 }
 
+interface RawSearchObj {
+    video: RawSearchMedia;
+    music: RawMedia;
+    playlist: RawSearchPlayList;
+    artist: RawSearchArtist;
+}
+
 export type {
     ResponseData,
     RawAlbum,
@@ -131,5 +138,6 @@ export type {
     RawVideoStreaming,
     RawSearchPlayList,
     RawSearchArtist,
-    RawMediaChart
+    RawMediaChart,
+    RawSearchObj
 }
