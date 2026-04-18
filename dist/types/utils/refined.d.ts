@@ -1,0 +1,11 @@
+import type { RawArtist, RawMedia, RawPlayList, RawPlayListSong, RawMediaChart, RawSearchObj } from '../types/raw.js';
+import type { Artist, Album, Media, PlayList, SearchMedia, SearchPlayList, SearchArtist, MediaChart, SearchObj } from '../types/response.js';
+export type { Artist, Album, Media, PlayList, SearchMedia, SearchPlayList, SearchArtist };
+declare function createSearchArtist(data: RawSearchObj['artist']): SearchObj['artist'];
+declare function createArtist(data: RawArtist, mediaList: RawPlayListSong): Artist;
+declare function createMedia(data: RawMedia): Media;
+declare function createMediaChart(data: RawMediaChart): MediaChart;
+declare function createSearchMedia(data: RawSearchObj['music'] | RawSearchObj['video']): SearchObj['music'] | SearchObj['video'];
+declare function createPlayList(data: RawPlayList): PlayList;
+declare function createSearchPlayList(data: RawSearchObj['playlist']): SearchObj['playlist'];
+export { createArtist, createMedia, createPlayList, createSearchMedia, createSearchPlayList, createSearchArtist, createMediaChart };
