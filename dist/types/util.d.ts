@@ -1,0 +1,11 @@
+import type { AxiosInstance } from 'axios';
+import type { Data, OriData } from './core/type.js';
+import type { ClientOptions } from './client.js';
+declare const appendURL: (pathURL?: string, baseURL?: string) => string;
+declare const isURL: (value: string) => boolean;
+declare const ensureCookies: (instance: AxiosInstance) => Promise<void>;
+declare function getIDFromURL(url: string): string;
+declare function validateOptions(options?: ClientOptions): Required<ClientOptions>;
+declare function createArtistRef(data: OriData.ArtistItem): Data.ArtistRef;
+declare function createMedia(data: OriData.Media): Data.Media;
+export { appendURL, getIDFromURL, validateOptions, isURL, ensureCookies, createMedia, createArtistRef };

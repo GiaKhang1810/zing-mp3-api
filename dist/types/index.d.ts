@@ -1,0 +1,13 @@
+import { Cookies } from './helper/cookies.js';
+import { createSignature } from './helper/encrypt.js';
+import { Lapse } from './helper/lapse.js';
+import { Client } from './client.js';
+import { getIDFromURL } from './util.js';
+import type { Data } from './core/type.js';
+import type { CookieSameSite, CookieRecord, StoreCookie } from './helper/cookies.js';
+import type { Params } from './helper/encrypt.js';
+import type { LapseJSON } from './helper/lapse.js';
+import type { ClientOptions } from './client.js';
+declare const client: Client;
+export type { Data, CookieSameSite, CookieRecord, StoreCookie, Params, LapseJSON, ClientOptions };
+export { client as default, Cookies, Lapse, Client, createSignature, getIDFromURL };
