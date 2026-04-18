@@ -126,7 +126,7 @@ const { default: client, Client } = require("@khang07/zing-mp3-api");
 ### Search songs
 
 ```ts
-const items = await client.searchMusic("Skyfall");
+const items = await client.search("Skyfall", "music");
 console.log(items[0]);
 ```
 
@@ -155,7 +155,7 @@ console.log(artist.followCount);
 ```ts
 import { createWriteStream } from "node:fs";
 
-const items = await client.searchMusic("Example");
+const items = await client.search("Example", "music");
 const stream = await client.music(items[0].id);
 
 stream.pipe(createWriteStream("music.mp3"));
@@ -166,7 +166,7 @@ stream.pipe(createWriteStream("music.mp3"));
 ```ts
 import { createWriteStream } from "node:fs";
 
-const items = await client.searchVideo("Example");
+const items = await client.search("Example", "video");
 const stream = await client.video(items[0].id);
 
 stream.pipe(createWriteStream("video.ts"));
